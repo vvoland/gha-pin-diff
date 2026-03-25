@@ -58,10 +58,10 @@ func fetchOne(ctx context.Context, client *github.Client, u diffparser.ActionUpd
 		// Use errors.AsType (Go 1.26) for typed error inspection.
 		if apiErr, ok := errors.AsType[*github.APIError](err); ok {
 			log.Printf("warning: compare failed for %s (%s...%s): HTTP %d",
-				u.Action, u.OldRef[:7], u.NewRef[:7], apiErr.StatusCode)
+				u.Action, shortRef(u.OldRef), shortRef(u.NewRef), apiErr.StatusCode)
 		} else {
 			log.Printf("warning: compare failed for %s (%s...%s): %v",
-				u.Action, u.OldRef[:7], u.NewRef[:7], err)
+				u.Action, shortRef(u.OldRef), shortRef(u.NewRef), err)
 		}
 		return Result{Update: u, Err: err}
 	}
@@ -111,4 +111,11 @@ func firstLine(s string) string {
 		return line
 	}
 	return s
+}
+
+func shortRef(ref string) string {
+	if len(ref) > 7 {
+		return ref[:7]
+	}
+	return ref
 }

@@ -1,6 +1,6 @@
 # gha-pin-diff
 
-A GitHub Action that comments on pull requests with a human-readable diff summary when GitHub Actions are updated via SHA pinning.
+A GitHub Action that comments on pull requests with a human-readable diff summary when GitHub Actions versions change.
 
 ## Problem
 
@@ -13,7 +13,7 @@ When Dependabot (or a human) updates SHA-pinned actions, the PR diff is opaque:
 
 You can't tell what changed between those commits without manually visiting the compare URL.
 
-**gha-pin-diff** automates this by posting a PR comment that summarizes the commits between the old and new SHAs for every updated action.
+**gha-pin-diff** automates this by posting a PR comment that summarizes the commits between the old and new refs for every updated action.
 
 ## Example Comment
 
@@ -67,13 +67,15 @@ jobs:
 
 ## What It Detects
 
-- **Step actions**: `uses: owner/repo@<sha>` with optional tag comment (`# v1.2.3`)
-- **Reusable workflows**: `uses: owner/repo/.github/workflows/file.yml@<sha>`
-- Only **40-character hex SHA** refs are processed (tag refs like `@v4` are ignored)
+- **SHA-to-SHA updates**: `@<old-sha>` → `@<new-sha>` (e.g. Dependabot digest bumps)
+- **Tag-to-SHA pinning**: `@v3` → `@<sha> # v4.0.0` (initial pin + version bump)
+- **Tag-to-tag updates**: `@v4.1.1` → `@v4.1.4`
+- **Step actions**: `uses: owner/repo@<ref>`
+- **Reusable workflows**: `uses: owner/repo/.github/workflows/file.yml@<ref>`
+- Optional inline tag comments (`# v1.2.3`) are used for display
 
 ## What It Does NOT Do
 
-- Compare non-SHA refs (tag-to-tag updates)
 - Block or fail the PR (informational only)
 - Post duplicate comments (existing bot comments are updated in place)
 
@@ -81,7 +83,7 @@ jobs:
 
 | Scenario | Action |
 |----------|--------|
-| SHA-pinned action changes found | Post/update comment with diff summary |
+| Action version changes found | Post/update comment with diff summary |
 | No relevant changes | Delete existing bot comment (if any) |
 | Compare API fails (e.g. repo deleted) | Show warning with manual compare link |
 | More than 15 commits per action | Show last 15 with link to full comparison |

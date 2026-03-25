@@ -8,7 +8,7 @@ const (
 	sha40a = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	sha40b = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	sha40c = "cccccccccccccccccccccccccccccccccccccccc"
-	sha40d = "dddddddddddddddddddddddddddddddddddddddd"
+	sha40d = "dddddddddddddddddddddddddddddddddddddd"
 )
 
 func TestParse(t *testing.T) {
@@ -94,6 +94,38 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			name: "tag to SHA - initial pinning",
+			patches: map[string]string{
+				".github/workflows/ci.yml": "@@ -10,3 +10,3 @@\n" +
+					"-      - uses: docker/setup-buildx-action@v3\n" +
+					"+      - uses: docker/setup-buildx-action@" + sha40a + " # v4.0.0",
+			},
+			want: []ActionUpdate{
+				{
+					Action: "docker/setup-buildx-action",
+					OldRef: "v3", NewRef: sha40a,
+					OldTag: "v3", NewTag: "v4.0.0",
+					File: ".github/workflows/ci.yml",
+				},
+			},
+		},
+		{
+			name: "tag to tag",
+			patches: map[string]string{
+				".github/workflows/ci.yml": "@@ -10,3 +10,3 @@\n" +
+					"-      - uses: actions/checkout@v4.1.1\n" +
+					"+      - uses: actions/checkout@v4.1.4",
+			},
+			want: []ActionUpdate{
+				{
+					Action: "actions/checkout",
+					OldRef: "v4.1.1", NewRef: "v4.1.4",
+					OldTag: "v4.1.1", NewTag: "v4.1.4",
+					File: ".github/workflows/ci.yml",
+				},
+			},
+		},
+		{
 			name: "new action added - no old ref, skip",
 			patches: map[string]string{
 				".github/workflows/ci.yml": "@@ -10,3 +10,5 @@\n" +
@@ -112,7 +144,7 @@ func TestParse(t *testing.T) {
 			want: nil,
 		},
 		{
-			name: "same SHA - skip",
+			name: "same ref - skip",
 			patches: map[string]string{
 				".github/workflows/ci.yml": "@@ -10,3 +10,3 @@\n" +
 					"-      - uses: actions/checkout@" + sha40a + " # v4.1.1\n" +
@@ -121,11 +153,11 @@ func TestParse(t *testing.T) {
 			want: nil,
 		},
 		{
-			name: "tag reference not SHA - skip",
+			name: "same tag ref - skip",
 			patches: map[string]string{
 				".github/workflows/ci.yml": "@@ -10,3 +10,3 @@\n" +
-					"-      - uses: actions/checkout@v4.1.1\n" +
-					"+      - uses: actions/checkout@v4.1.4",
+					"-      - uses: actions/checkout@v4\n" +
+					"+      - uses: actions/checkout@v4",
 			},
 			want: nil,
 		},

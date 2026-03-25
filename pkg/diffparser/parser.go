@@ -1,4 +1,4 @@
-// Package diffparser extracts GitHub Action SHA-pin changes from unified diff patches.
+// Package diffparser extracts GitHub Action version changes from unified diff patches.
 package diffparser
 
 import (
@@ -6,30 +6,44 @@ import (
 	"strings"
 )
 
-// ActionUpdate represents a single action whose pinned SHA changed.
+// ActionUpdate represents a single action whose version ref changed.
 type ActionUpdate struct {
 	Action string // e.g. "actions/checkout"
-	OldRef string // 40-char hex SHA
-	NewRef string // 40-char hex SHA
-	OldTag string // e.g. "v4.1.1" (from inline comment, may be empty)
-	NewTag string // e.g. "v4.1.4"
+	OldRef string // git ref: 40-char SHA or tag name (e.g. "v3")
+	NewRef string // git ref: 40-char SHA or tag name
+	OldTag string // human-readable version (from inline comment or tag ref itself)
+	NewTag string // human-readable version
 	File   string // workflow file path
 }
 
-// usesRe matches a `uses:` line with an owner/repo (optionally /path) @ 40-hex SHA,
+// usesRe matches a `uses:` line with owner/repo (optionally /path) @ any ref,
 // and an optional inline tag comment like `# v4.1.1`.
 //
 // Capture groups:
 //  1. action target (owner/repo or owner/repo/path)
-//  2. 40-char SHA
+//  2. ref (SHA, tag, or branch — everything between @ and whitespace)
 //  3. tag comment (optional, without the leading "# ")
 var usesRe = regexp.MustCompile(
-	`uses:\s+([a-zA-Z0-9\-_.]+/[a-zA-Z0-9\-_.]+(?:/[^\s@]+)?)@([0-9a-f]{40})` +
-		`(?:\s+#\s*(\S+))?`,
+	`uses:\s+([a-zA-Z0-9\-_.]+/[a-zA-Z0-9\-_.]+(?:/[^\s@]+)?)@(\S+?)` +
+		`(?:\s+#\s*(\S+))?` +
+		`\s*$`,
 )
 
+// isSHA reports whether s is a 40-character hexadecimal string.
+func isSHA(s string) bool {
+	if len(s) != 40 {
+		return false
+	}
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			return false
+		}
+	}
+	return true
+}
+
 // Parse scans unified diff patches from changed workflow files and returns
-// all detected SHA-pin updates. Each entry in patches maps a file path to
+// all detected version changes. Each entry in patches maps a file path to
 // the unified diff patch text (as returned by the GitHub PR files API).
 func Parse(patches map[string]string) []ActionUpdate {
 	var updates []ActionUpdate
@@ -39,12 +53,23 @@ func Parse(patches map[string]string) []ActionUpdate {
 	return updates
 }
 
-func parsePatch(file, patch string) []ActionUpdate {
-	type ref struct {
-		sha string
-		tag string
-	}
+type ref struct {
+	raw string // the ref as written after @
+	tag string // from inline comment, or the raw ref itself if not a SHA
+}
 
+// bestTag returns the human-readable tag for display.
+func (r ref) bestTag() string {
+	if r.tag != "" {
+		return r.tag
+	}
+	if !isSHA(r.raw) {
+		return r.raw
+	}
+	return ""
+}
+
+func parsePatch(file, patch string) []ActionUpdate {
 	removed := make(map[string][]ref) // action -> list of removed refs
 	added := make(map[string][]ref)   // action -> list of added refs
 
@@ -65,10 +90,7 @@ func parsePatch(file, patch string) []ActionUpdate {
 		}
 
 		action := m[1]
-		sha := m[2]
-		tag := m[3]
-
-		r := ref{sha: sha, tag: tag}
+		r := ref{raw: m[2], tag: m[3]}
 		if prefix == '-' {
 			removed[action] = append(removed[action], r)
 		} else {
@@ -81,15 +103,15 @@ func parsePatch(file, patch string) []ActionUpdate {
 		adds := added[action]
 		n := min(len(rems), len(adds))
 		for i := range n {
-			if rems[i].sha == adds[i].sha {
+			if rems[i].raw == adds[i].raw {
 				continue
 			}
 			updates = append(updates, ActionUpdate{
 				Action: action,
-				OldRef: rems[i].sha,
-				NewRef: adds[i].sha,
-				OldTag: rems[i].tag,
-				NewTag: adds[i].tag,
+				OldRef: rems[i].raw,
+				NewRef: adds[i].raw,
+				OldTag: rems[i].bestTag(),
+				NewTag: adds[i].bestTag(),
 				File:   file,
 			})
 		}
