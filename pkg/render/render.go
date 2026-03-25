@@ -136,6 +136,7 @@ func renderResult(b *strings.Builder, r compare.Result) {
 	}
 
 	// Commit table
+	ownerRepo := actionOwnerRepo(u.Action)
 	b.WriteString("\n| SHA | Message | Date |\n")
 	b.WriteString("|-----|---------|------|\n")
 
@@ -146,6 +147,7 @@ func renderResult(b *strings.Builder, r compare.Result) {
 
 	for _, c := range shown {
 		sha := shortRef(c.SHA)
+		commitURL := fmt.Sprintf("https://github.com/%s/commit/%s", ownerRepo, c.SHA)
 		date := ""
 		if !c.Date.IsZero() {
 			date = c.Date.Format("2006-01-02")
@@ -154,7 +156,7 @@ func renderResult(b *strings.Builder, r compare.Result) {
 		if len(msg) > 80 {
 			msg = msg[:77] + "..."
 		}
-		fmt.Fprintf(b, "| `%s` | %s | %s |\n", sha, msg, date)
+		fmt.Fprintf(b, "| [`%s`](%s) | %s | %s |\n", sha, commitURL, msg, date)
 	}
 
 	if r.TotalCommits > MaxCommitsShown {

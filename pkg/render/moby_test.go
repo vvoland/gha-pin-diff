@@ -67,9 +67,9 @@ func TestMobyPR52217Render(t *testing.T) {
 		{"version range", "`v3` → `v4.0.0`"},
 		{"commit count", "**3 commits**"},
 		{"compare link", fmt.Sprintf("[Compare](https://github.com/docker/setup-buildx-action/compare/v3...%s)", sha)},
-		{"commit row", "| `4d04d5d` | Merge pull request #123 from docker/v4 | 2025-03-20 |"},
-		{"commit row 2", "| `abcdef1` | chore: bump buildx to 0.20 | 2025-03-19 |"},
-		{"commit row 3", "| `1234567` | feat: add support for new driver options | 2025-03-18 |"},
+		{"commit row", "| [`4d04d5d`](https://github.com/docker/setup-buildx-action/commit/4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd) | Merge pull request #123 from docker/v4 | 2025-03-20 |"},
+		{"commit row 2", "| [`abcdef1`](https://github.com/docker/setup-buildx-action/commit/abcdef1234567890abcdef1234567890abcdef12) | chore: bump buildx to 0.20 | 2025-03-19 |"},
+		{"commit row 3", "| [`1234567`](https://github.com/docker/setup-buildx-action/commit/1234567890abcdef1234567890abcdef12345678) | feat: add support for new driver options | 2025-03-18 |"},
 	}
 	for _, c := range checks {
 		if !strings.Contains(got, c.want) {
