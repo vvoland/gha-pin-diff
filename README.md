@@ -42,7 +42,7 @@ jobs:
   pin-diff:
     runs-on: ubuntu-latest
     steps:
-      - uses: your-org/gha-pin-diff@v1
+      - uses: vvoland/gha-pin-diff@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 ```

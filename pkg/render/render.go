@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/pawel/gha-pin-diff/pkg/compare"
+	"github.com/vvoland/gha-pin-diff/pkg/compare"
 )
 
 // Marker is the HTML comment used to identify bot comments.

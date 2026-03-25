@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pawel/gha-pin-diff/pkg/compare"
-	"github.com/pawel/gha-pin-diff/pkg/diffparser"
+	"github.com/vvoland/gha-pin-diff/pkg/compare"
+	"github.com/vvoland/gha-pin-diff/pkg/diffparser"
 )
 
 func TestCommentEmpty(t *testing.T) {

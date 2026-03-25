@@ -5,8 +5,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/pawel/gha-pin-diff/pkg/github"
-	"github.com/pawel/gha-pin-diff/pkg/render"
+	"github.com/vvoland/gha-pin-diff/pkg/github"
+	"github.com/vvoland/gha-pin-diff/pkg/render"
 )
 
 // Ensure creates, updates, or deletes the bot comment on a PR.
