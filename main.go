@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -15,6 +14,7 @@ import (
 	"github.com/vvoland/gha-pin-diff/pkg/diffparser"
 	"github.com/vvoland/gha-pin-diff/pkg/github"
 	"github.com/vvoland/gha-pin-diff/pkg/render"
+	"strconv"
 )
 
 func main() {
@@ -90,33 +90,15 @@ func run() error {
 }
 
 func getPRNumber() (int, error) {
-	eventPath := os.Getenv("GITHUB_EVENT_PATH")
-	if eventPath == "" {
-		return 0, errors.New("GITHUB_EVENT_PATH is required")
+	s := os.Getenv("PR_NUMBER")
+	if s == "" {
+		return 0, errors.New("PR_NUMBER is not set (is the trigger a pull_request event?)")
 	}
-
-	data, err := os.ReadFile(eventPath)
+	n, err := strconv.Atoi(s)
 	if err != nil {
-		return 0, fmt.Errorf("reading event file: %w", err)
+		return 0, fmt.Errorf("invalid PR_NUMBER %q: %w", s, err)
 	}
-
-	var event struct {
-		PullRequest struct {
-			Number int `json:"number"`
-		} `json:"pull_request"`
-		Number int `json:"number"`
-	}
-	if err := json.Unmarshal(data, &event); err != nil {
-		return 0, fmt.Errorf("parsing event JSON: %w", err)
-	}
-
-	if event.PullRequest.Number != 0 {
-		return event.PullRequest.Number, nil
-	}
-	if event.Number != 0 {
-		return event.Number, nil
-	}
-	return 0, errors.New("could not determine PR number from event")
+	return n, nil
 }
 
 func isWorkflowFile(path string) bool {
