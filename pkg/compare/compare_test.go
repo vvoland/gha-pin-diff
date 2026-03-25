@@ -36,7 +36,7 @@ func TestFetch(t *testing.T) {
 			]
 		}`
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(resp))
+		_, _ = w.Write([]byte(resp))
 	})
 
 	srv := httptest.NewServer(mux)
@@ -86,7 +86,7 @@ func TestFetchAPIError(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"message":"Not Found"}`))
+		_, _ = w.Write([]byte(`{"message":"Not Found"}`))
 	})
 
 	srv := httptest.NewServer(mux)
