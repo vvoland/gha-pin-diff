@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/vvoland/gha-pin-diff/pkg/comment"
@@ -91,19 +90,9 @@ func run() error {
 }
 
 func getPRNumber() (int, error) {
-	// First try INPUT_PR_NUMBER (explicit input).
-	if s := os.Getenv("INPUT_PR_NUMBER"); s != "" {
-		n, err := strconv.Atoi(s)
-		if err != nil {
-			return 0, fmt.Errorf("invalid INPUT_PR_NUMBER: %q", s)
-		}
-		return n, nil
-	}
-
-	// Fall back to GITHUB_EVENT_PATH.
 	eventPath := os.Getenv("GITHUB_EVENT_PATH")
 	if eventPath == "" {
-		return 0, errors.New("GITHUB_EVENT_PATH or INPUT_PR_NUMBER is required")
+		return 0, errors.New("GITHUB_EVENT_PATH is required")
 	}
 
 	data, err := os.ReadFile(eventPath)
