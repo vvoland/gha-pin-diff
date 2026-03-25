@@ -55,7 +55,7 @@ func TestCommentMarker(t *testing.T) {
 	if !strings.Contains(got, "**1 commit**") {
 		t.Error("should say '1 commit' (singular)")
 	}
-	if !strings.Contains(got, "| `abc1234` | Fix something | 2024-04-15 |") {
+	if !strings.Contains(got, "| [`abc1234`](https://github.com/actions/checkout/commit/abc1234567890abc1234567890abc1234567890ab) | Fix something | 2024-04-15 |") {
 		t.Errorf("missing commit row, got:\n%s", got)
 	}
 }
@@ -115,10 +115,10 @@ func TestCommentTruncation(t *testing.T) {
 		t.Errorf("missing truncation notice, got:\n%s", got)
 	}
 
-	// Count table rows (lines starting with "| `")
+	// Count table rows (lines starting with "| [`")
 	rows := 0
 	for _, line := range strings.Split(got, "\n") {
-		if strings.HasPrefix(line, "| `") {
+		if strings.HasPrefix(line, "| [`") {
 			rows++
 		}
 	}
