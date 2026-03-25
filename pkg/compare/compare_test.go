@@ -1,8 +1,7 @@
 package compare
 
 import (
-	"context"
-	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,30 +13,30 @@ import (
 func TestFetch(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/actions/checkout/compare/", func(w http.ResponseWriter, r *http.Request) {
-		resp := map[string]interface{}{
-			"html_url":      "https://github.com/actions/checkout/compare/aaa...bbb",
+		resp := `{
+			"html_url": "https://github.com/actions/checkout/compare/aaa...bbb",
 			"total_commits": 2,
-			"commits": []map[string]interface{}{
+			"commits": [
 				{
 					"sha": "abc1234567890abc1234567890abc1234567890ab",
-					"commit": map[string]interface{}{
+					"commit": {
 						"message": "Fix something\n\nDetails here",
-						"author":  map[string]string{"name": "Alice", "date": "2024-04-15T10:00:00Z"},
+						"author": {"name": "Alice", "date": "2024-04-15T10:00:00Z"}
 					},
-					"author": map[string]string{"login": "alice"},
+					"author": {"login": "alice"}
 				},
 				{
 					"sha": "def1234567890def1234567890def1234567890de",
-					"commit": map[string]interface{}{
+					"commit": {
 						"message": "Update deps",
-						"author":  map[string]string{"name": "Bob", "date": "2024-04-14T09:00:00Z"},
+						"author": {"name": "Bob", "date": "2024-04-14T09:00:00Z"}
 					},
-					"author": map[string]string{"login": "bob"},
-				},
-			},
-		}
+					"author": {"login": "bob"}
+				}
+			]
+		}`
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		w.Write([]byte(resp))
 	})
 
 	srv := httptest.NewServer(mux)
@@ -57,7 +56,7 @@ func TestFetch(t *testing.T) {
 		},
 	}
 
-	results := Fetch(context.Background(), client, updates)
+	results := Fetch(t.Context(), client, updates)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -105,12 +104,21 @@ func TestFetchAPIError(t *testing.T) {
 		},
 	}
 
-	results := Fetch(context.Background(), client, updates)
+	results := Fetch(t.Context(), client, updates)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
 	if results[0].Err == nil {
 		t.Fatal("expected error for 404 response")
+	}
+
+	// Verify errors.AsType (Go 1.26) works with our typed APIError.
+	apiErr, ok := errors.AsType[*github.APIError](results[0].Err)
+	if !ok {
+		t.Fatalf("expected *github.APIError, got %T", results[0].Err)
+	}
+	if apiErr.StatusCode != http.StatusNotFound {
+		t.Errorf("StatusCode = %d, want 404", apiErr.StatusCode)
 	}
 }
 
@@ -119,16 +127,17 @@ func TestActionOwnerRepo(t *testing.T) {
 		action    string
 		wantOwner string
 		wantRepo  string
+		wantOK    bool
 	}{
-		{"actions/checkout", "actions", "checkout"},
-		{"org/repo/.github/workflows/deploy.yml", "org", "repo"},
-		{"invalid", "", ""},
+		{"actions/checkout", "actions", "checkout", true},
+		{"org/repo/.github/workflows/deploy.yml", "org", "repo", true},
+		{"invalid", "", "", false},
 	}
 	for _, tt := range tests {
-		owner, repo := actionOwnerRepo(tt.action)
-		if owner != tt.wantOwner || repo != tt.wantRepo {
-			t.Errorf("actionOwnerRepo(%q) = (%q, %q), want (%q, %q)",
-				tt.action, owner, repo, tt.wantOwner, tt.wantRepo)
+		owner, repo, ok := actionOwnerRepo(tt.action)
+		if owner != tt.wantOwner || repo != tt.wantRepo || ok != tt.wantOK {
+			t.Errorf("actionOwnerRepo(%q) = (%q, %q, %v), want (%q, %q, %v)",
+				tt.action, owner, repo, ok, tt.wantOwner, tt.wantRepo, tt.wantOK)
 		}
 	}
 }

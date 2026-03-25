@@ -3,9 +3,11 @@ package compare
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pawel/gha-pin-diff/pkg/diffparser"
@@ -29,18 +31,22 @@ type CommitInfo struct {
 	Date    time.Time
 }
 
-// Fetch fetches comparison data for each action update.
+// Fetch fetches comparison data for each action update concurrently.
 func Fetch(ctx context.Context, client *github.Client, updates []diffparser.ActionUpdate) []Result {
 	results := make([]Result, len(updates))
+	var wg sync.WaitGroup
 	for i, u := range updates {
-		results[i] = fetchOne(ctx, client, u)
+		wg.Go(func() {
+			results[i] = fetchOne(ctx, client, u)
+		})
 	}
+	wg.Wait()
 	return results
 }
 
 func fetchOne(ctx context.Context, client *github.Client, u diffparser.ActionUpdate) Result {
-	owner, repo := actionOwnerRepo(u.Action)
-	if owner == "" {
+	owner, repo, ok := actionOwnerRepo(u.Action)
+	if !ok {
 		return Result{
 			Update: u,
 			Err:    fmt.Errorf("cannot parse owner/repo from %q", u.Action),
@@ -49,11 +55,15 @@ func fetchOne(ctx context.Context, client *github.Client, u diffparser.ActionUpd
 
 	cmp, err := client.CompareCommits(ctx, owner, repo, u.OldRef, u.NewRef)
 	if err != nil {
-		log.Printf("warning: compare failed for %s (%s...%s): %v", u.Action, u.OldRef[:7], u.NewRef[:7], err)
-		return Result{
-			Update: u,
-			Err:    err,
+		// Use errors.AsType (Go 1.26) for typed error inspection.
+		if apiErr, ok := errors.AsType[*github.APIError](err); ok {
+			log.Printf("warning: compare failed for %s (%s...%s): HTTP %d",
+				u.Action, u.OldRef[:7], u.NewRef[:7], apiErr.StatusCode)
+		} else {
+			log.Printf("warning: compare failed for %s (%s...%s): %v",
+				u.Action, u.OldRef[:7], u.NewRef[:7], err)
 		}
+		return Result{Update: u, Err: err}
 	}
 
 	commits := make([]CommitInfo, 0, len(cmp.Commits))
@@ -85,19 +95,20 @@ func fetchOne(ctx context.Context, client *github.Client, u diffparser.ActionUpd
 }
 
 // actionOwnerRepo extracts owner and repo from an action target.
-// "actions/checkout" -> ("actions", "checkout")
-// "org/repo/.github/workflows/x.yml" -> ("org", "repo")
-func actionOwnerRepo(action string) (string, string) {
-	parts := strings.SplitN(action, "/", 3)
-	if len(parts) < 2 {
-		return "", ""
+// "actions/checkout" -> ("actions", "checkout", true)
+// "org/repo/.github/workflows/x.yml" -> ("org", "repo", true)
+func actionOwnerRepo(action string) (string, string, bool) {
+	owner, rest, ok := strings.Cut(action, "/")
+	if !ok {
+		return "", "", false
 	}
-	return parts[0], parts[1]
+	repo, _, _ := strings.Cut(rest, "/")
+	return owner, repo, true
 }
 
 func firstLine(s string) string {
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		return s[:i]
+	if line, _, ok := strings.Cut(s, "\n"); ok {
+		return line
 	}
 	return s
 }

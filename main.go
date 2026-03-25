@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -27,12 +28,12 @@ func main() {
 func run() error {
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" {
-		return fmt.Errorf("GITHUB_TOKEN is required")
+		return errors.New("GITHUB_TOKEN is required")
 	}
 
 	repo := os.Getenv("GITHUB_REPOSITORY") // "owner/repo"
 	if repo == "" {
-		return fmt.Errorf("GITHUB_REPOSITORY is required")
+		return errors.New("GITHUB_REPOSITORY is required")
 	}
 
 	owner, repoName, ok := strings.Cut(repo, "/")
@@ -99,7 +100,7 @@ func getPRNumber() (int, error) {
 	// Fall back to GITHUB_EVENT_PATH.
 	eventPath := os.Getenv("GITHUB_EVENT_PATH")
 	if eventPath == "" {
-		return 0, fmt.Errorf("GITHUB_EVENT_PATH or INPUT_PR_NUMBER is required")
+		return 0, errors.New("GITHUB_EVENT_PATH or INPUT_PR_NUMBER is required")
 	}
 
 	data, err := os.ReadFile(eventPath)
@@ -123,7 +124,7 @@ func getPRNumber() (int, error) {
 	if event.Number != 0 {
 		return event.Number, nil
 	}
-	return 0, fmt.Errorf("could not determine PR number from event")
+	return 0, errors.New("could not determine PR number from event")
 }
 
 func isWorkflowFile(path string) bool {

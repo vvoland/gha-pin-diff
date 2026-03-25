@@ -2,8 +2,9 @@
 package render
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/pawel/gha-pin-diff/pkg/compare"
@@ -23,11 +24,11 @@ func Comment(results []compare.Result) string {
 	}
 
 	// Sort by file, then action for stable output.
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Update.File != results[j].Update.File {
-			return results[i].Update.File < results[j].Update.File
+	slices.SortFunc(results, func(a, b compare.Result) int {
+		if c := cmp.Compare(a.Update.File, b.Update.File); c != 0 {
+			return c
 		}
-		return results[i].Update.Action < results[j].Update.Action
+		return cmp.Compare(a.Update.Action, b.Update.Action)
 	})
 
 	var b strings.Builder
@@ -123,11 +124,12 @@ func actionRepoURL(action string) string {
 }
 
 func actionOwnerRepo(action string) string {
-	parts := strings.SplitN(action, "/", 3)
-	if len(parts) < 2 {
+	owner, rest, ok := strings.Cut(action, "/")
+	if !ok {
 		return action
 	}
-	return parts[0] + "/" + parts[1]
+	repo, _, _ := strings.Cut(rest, "/")
+	return owner + "/" + repo
 }
 
 func escapeMarkdown(s string) string {
