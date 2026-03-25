@@ -153,6 +153,67 @@ func TestCommentSortOrder(t *testing.T) {
 	idxFirst := strings.Index(got, "aaa/first")
 	idxLast := strings.Index(got, "zzz/last")
 	if idxFirst > idxLast {
-		t.Error("results should be sorted by file then action")
+		t.Error("results should be sorted by action name")
+	}
+}
+
+func TestCommentDedup(t *testing.T) {
+	// Simulate a PR that pins actions/checkout@v6 → SHA in 5 different places.
+	base := compare.Result{
+		Update: diffparser.ActionUpdate{
+			Action: "actions/checkout",
+			OldRef: "v6",
+			NewRef: "de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+			OldTag: "v6",
+			NewTag: "v6",
+		},
+		CompareURL:   "https://github.com/actions/checkout/compare/v6...de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+		TotalCommits: 0,
+	}
+
+	var results []compare.Result
+	for _, f := range []string{"ci.yml", "build.yml", "test.yml", "release.yml", "lint.yml"} {
+		r := base
+		r.Update.File = ".github/workflows/" + f
+		results = append(results, r)
+	}
+
+	got := Comment(results)
+	count := strings.Count(got, "### [`actions/checkout`]")
+	if count != 1 {
+		t.Errorf("expected 1 section for actions/checkout, got %d\n%s", count, got)
+	}
+}
+
+func TestCommentDedupDifferentRefs(t *testing.T) {
+	results := []compare.Result{
+		{
+			Update: diffparser.ActionUpdate{
+				Action: "actions/checkout",
+				OldRef: "v5",
+				NewRef: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				OldTag: "v5",
+				NewTag: "v6",
+				File:   ".github/workflows/ci.yml",
+			},
+			TotalCommits: 3,
+		},
+		{
+			Update: diffparser.ActionUpdate{
+				Action: "actions/checkout",
+				OldRef: "v6",
+				NewRef: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+				OldTag: "v6",
+				NewTag: "v6",
+				File:   ".github/workflows/ci.yml",
+			},
+			TotalCommits: 0,
+		},
+	}
+
+	got := Comment(results)
+	count := strings.Count(got, "### [`actions/checkout`]")
+	if count != 2 {
+		t.Errorf("expected 2 sections for different ref changes, got %d\n%s", count, got)
 	}
 }

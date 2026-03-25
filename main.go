@@ -75,7 +75,10 @@ func run() error {
 		return comment.Ensure(ctx, client, owner, repoName, pr, "")
 	}
 
-	log.Printf("found %d action pin update(s)", len(updates))
+	// Deduplicate updates that refer to the same comparison.
+	updates = dedup(updates)
+
+	log.Printf("found %d unique action pin update(s)", len(updates))
 
 	// 4. Fetch comparisons.
 	results := compare.Fetch(ctx, client, updates)
@@ -130,4 +133,22 @@ func getPRNumber() (int, error) {
 func isWorkflowFile(path string) bool {
 	dir := filepath.Dir(path)
 	return dir == ".github/workflows" || strings.HasPrefix(dir, ".github/workflows/")
+}
+
+type comparisonKey struct {
+	action, oldRef, newRef string
+}
+
+func dedup(updates []diffparser.ActionUpdate) []diffparser.ActionUpdate {
+	seen := make(map[comparisonKey]bool, len(updates))
+	out := make([]diffparser.ActionUpdate, 0, len(updates))
+	for _, u := range updates {
+		k := comparisonKey{u.Action, u.OldRef, u.NewRef}
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		out = append(out, u)
+	}
+	return out
 }
