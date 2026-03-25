@@ -79,8 +79,8 @@ func isPinOnly(r compare.Result) bool {
 
 func renderPinOnly(b *strings.Builder, results []compare.Result) {
 	b.WriteString("\n### 📌 Pinned (digest unchanged)\n")
-	b.WriteString("\n| Action | Version |\n")
-	b.WriteString("|--------|---------|\n")
+	b.WriteString("\n| Action | Version | Digest |\n")
+	b.WriteString("|--------|---------|--------|\n")
 	for _, r := range results {
 		u := r.Update
 		tag := u.NewTag
@@ -90,7 +90,8 @@ func renderPinOnly(b *strings.Builder, results []compare.Result) {
 		if tag == "" {
 			tag = shortRef(u.NewRef)
 		}
-		fmt.Fprintf(b, "| [`%s`](%s) | `%s` |\n", u.Action, actionRepoURL(u.Action), tag)
+		commitURL := fmt.Sprintf("https://github.com/%s/commit/%s", actionOwnerRepo(u.Action), u.NewRef)
+		fmt.Fprintf(b, "| [`%s`](%s) | `%s` | [`%s`](%s) |\n", u.Action, actionRepoURL(u.Action), tag, shortRef(u.NewRef), commitURL)
 	}
 }
 
