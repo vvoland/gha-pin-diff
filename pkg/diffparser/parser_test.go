@@ -210,16 +210,13 @@ func updatesEqual(a, b []ActionUpdate) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	type key struct {
-		Action, OldRef, NewRef, OldTag, NewTag, File string
-	}
-	setA := make(map[key]int)
+	setA := make(map[ActionUpdate]int)
 	for _, u := range a {
-		setA[key{u.Action, u.OldRef, u.NewRef, u.OldTag, u.NewTag, u.File}]++
+		setA[u]++
 	}
-	setB := make(map[key]int)
+	setB := make(map[ActionUpdate]int)
 	for _, u := range b {
-		setB[key{u.Action, u.OldRef, u.NewRef, u.OldTag, u.NewTag, u.File}]++
+		setB[u]++
 	}
 	if len(setA) != len(setB) {
 		return false
