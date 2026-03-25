@@ -1,0 +1,19 @@
+name: 'Action Pin Diff'
+description: 'Comments on PRs with a diff summary when GitHub Actions are updated via SHA pinning'
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+    default: ${{ github.token }}
+  pr-number:
+    description: 'Pull request number (auto-detected from event by default)'
+    required: false
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  env:
+    GITHUB_TOKEN: ${{ inputs.github-token }}
+    INPUT_PR_NUMBER: ${{ inputs.pr-number }}
+branding:
+  icon: 'git-pull-request'
+  color: 'blue'
