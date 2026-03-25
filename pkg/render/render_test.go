@@ -283,6 +283,17 @@ func TestCommentPinOnly(t *testing.T) {
 		}
 	}
 
+	// Digest links should be present.
+	if !strings.Contains(got, "[`de0fac2`](https://github.com/actions/checkout/commit/de0fac2e4500dabe0009e67214ff5f5447ce83dd)") {
+		t.Error("missing digest link for actions/checkout")
+	}
+	if !strings.Contains(got, "[`4b73464`](https://github.com/actions/setup-go/commit/4b73464bb391d4059bd26b0524d20df3927bd417)") {
+		t.Error("missing digest link for actions/setup-go")
+	}
+	if !strings.Contains(got, "[`bbbca2d`](https://github.com/actions/upload-artifact/commit/bbbca2ddaa5d8feaa63e36b76fdaad77386f024f)") {
+		t.Error("missing digest link for actions/upload-artifact")
+	}
+
 	// Should NOT contain full section headers for pin-only results.
 	if strings.Contains(got, "**0 commits**") {
 		t.Error("pin-only results should not show commit count")
