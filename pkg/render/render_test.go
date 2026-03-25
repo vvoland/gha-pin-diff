@@ -179,9 +179,14 @@ func TestCommentDedup(t *testing.T) {
 	}
 
 	got := Comment(results)
-	count := strings.Count(got, "### [`actions/checkout`]")
+
+	// Should appear once in pin-only table, not as repeated full sections.
+	count := strings.Count(got, "[`actions/checkout`]")
 	if count != 1 {
-		t.Errorf("expected 1 section for actions/checkout, got %d\n%s", count, got)
+		t.Errorf("expected actions/checkout mentioned once, got %d times\n%s", count, got)
+	}
+	if !strings.Contains(got, "📌 Pinned") {
+		t.Errorf("expected pin-only section\n%s", got)
 	}
 }
 
@@ -212,8 +217,119 @@ func TestCommentDedupDifferentRefs(t *testing.T) {
 	}
 
 	got := Comment(results)
-	count := strings.Count(got, "### [`actions/checkout`]")
-	if count != 2 {
-		t.Errorf("expected 2 sections for different ref changes, got %d\n%s", count, got)
+
+	// The v5→v6 change should render as a full section.
+	if !strings.Contains(got, "`v5` → `v6`") {
+		t.Errorf("missing version change section\n%s", got)
+	}
+	// The v6→v6 pin should appear in the pin-only table.
+	if !strings.Contains(got, "📌 Pinned") {
+		t.Errorf("missing pin-only section\n%s", got)
+	}
+}
+
+func TestCommentPinOnly(t *testing.T) {
+	results := []compare.Result{
+		{
+			Update: diffparser.ActionUpdate{
+				Action: "actions/checkout",
+				OldRef: "v6",
+				NewRef: "de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+				OldTag: "v6",
+				NewTag: "v6",
+				File:   ".github/workflows/ci.yml",
+			},
+			CompareURL:   "https://github.com/actions/checkout/compare/v6...de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+			TotalCommits: 0,
+		},
+		{
+			Update: diffparser.ActionUpdate{
+				Action: "actions/setup-go",
+				OldRef: "v6",
+				NewRef: "4b73464bb391d4059bd26b0524d20df3927bd417",
+				OldTag: "v6",
+				NewTag: "v6",
+				File:   ".github/workflows/ci.yml",
+			},
+			CompareURL:   "https://github.com/actions/setup-go/compare/v6...4b73464bb391d4059bd26b0524d20df3927bd417",
+			TotalCommits: 0,
+		},
+		{
+			Update: diffparser.ActionUpdate{
+				Action: "actions/upload-artifact",
+				OldRef: "v7",
+				NewRef: "bbbca2ddaa5d8feaa63e36b76fdaad77386f024f",
+				OldTag: "v7",
+				NewTag: "v7",
+				File:   ".github/workflows/ci.yml",
+			},
+			CompareURL:   "https://github.com/actions/upload-artifact/compare/v7...bbbca2ddaa5d8feaa63e36b76fdaad77386f024f",
+			TotalCommits: 0,
+		},
+	}
+
+	got := Comment(results)
+	t.Logf("Rendered:\n%s", got)
+
+	if !strings.Contains(got, "📌 Pinned (digest unchanged)") {
+		t.Error("missing pin-only header")
+	}
+
+	// All actions should appear exactly once in the table.
+	for _, action := range []string{"actions/checkout", "actions/setup-go", "actions/upload-artifact"} {
+		count := strings.Count(got, "[`"+action+"`]")
+		if count != 1 {
+			t.Errorf("%s should appear once, got %d", action, count)
+		}
+	}
+
+	// Should NOT contain full section headers for pin-only results.
+	if strings.Contains(got, "**0 commits**") {
+		t.Error("pin-only results should not show commit count")
+	}
+}
+
+func TestCommentPinOnlyAllSameAction(t *testing.T) {
+	// The exact scenario from the issue: same action pinned across many files.
+	var results []compare.Result
+	for i := range 5 {
+		results = append(results, compare.Result{
+			Update: diffparser.ActionUpdate{
+				Action: "actions/checkout",
+				OldRef: "v6",
+				NewRef: "de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+				OldTag: "v6",
+				NewTag: "v6",
+				File:   fmt.Sprintf(".github/workflows/file%d.yml", i),
+			},
+			TotalCommits: 0,
+		})
+	}
+	for i := range 4 {
+		results = append(results, compare.Result{
+			Update: diffparser.ActionUpdate{
+				Action: "actions/setup-go",
+				OldRef: "v6",
+				NewRef: "4b73464bb391d4059bd26b0524d20df3927bd417",
+				OldTag: "v6",
+				NewTag: "v6",
+				File:   fmt.Sprintf(".github/workflows/file%d.yml", i),
+			},
+			TotalCommits: 0,
+		})
+	}
+
+	got := Comment(results)
+	t.Logf("Rendered:\n%s", got)
+
+	// Should be a single compact table with 2 rows, not 9 sections.
+	if strings.Count(got, "[`actions/checkout`]") != 1 {
+		t.Errorf("actions/checkout should appear once\n%s", got)
+	}
+	if strings.Count(got, "[`actions/setup-go`]") != 1 {
+		t.Errorf("actions/setup-go should appear once\n%s", got)
+	}
+	if strings.Contains(got, "**0 commits**") {
+		t.Errorf("should not contain commit counts\n%s", got)
 	}
 }

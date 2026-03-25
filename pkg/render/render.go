@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/vvoland/gha-pin-diff/pkg/compare"
-	"github.com/vvoland/gha-pin-diff/pkg/diffparser"
 )
 
 // Marker is the HTML comment used to identify bot comments.
@@ -24,6 +23,34 @@ func Comment(results []compare.Result) string {
 		return ""
 	}
 
+	// Deduplicate and partition into pin-only vs changed.
+	results = dedup(results)
+	var pinOnly, changed []compare.Result
+	for _, r := range results {
+		if isPinOnly(r) {
+			pinOnly = append(pinOnly, r)
+		} else {
+			changed = append(changed, r)
+		}
+	}
+
+	var b strings.Builder
+	b.WriteString(Marker)
+	b.WriteString("\n## 🔄 Action Pin Diff\n")
+
+	for _, r := range changed {
+		b.WriteByte('\n')
+		renderResult(&b, r)
+	}
+
+	if len(pinOnly) > 0 {
+		renderPinOnly(&b, pinOnly)
+	}
+
+	return b.String()
+}
+
+func dedup(results []compare.Result) []compare.Result {
 	// Sort by action, then refs for grouping, then file for stable output.
 	slices.SortFunc(results, func(a, b compare.Result) int {
 		if c := cmp.Compare(a.Update.Action, b.Update.Action); c != 0 {
@@ -38,23 +65,33 @@ func Comment(results []compare.Result) string {
 		return cmp.Compare(a.Update.File, b.Update.File)
 	})
 
-	var b strings.Builder
-	b.WriteString(Marker)
-	b.WriteString("\n## 🔄 Action Pin Diff\n")
-
-	for i, r := range results {
-		if i > 0 && sameComparison(results[i-1].Update, r.Update) {
-			continue
-		}
-		b.WriteByte('\n')
-		renderResult(&b, r)
-	}
-
-	return b.String()
+	return slices.CompactFunc(results, func(a, b compare.Result) bool {
+		return a.Update.Action == b.Update.Action &&
+			a.Update.OldRef == b.Update.OldRef &&
+			a.Update.NewRef == b.Update.NewRef
+	})
 }
 
-func sameComparison(a, b diffparser.ActionUpdate) bool {
-	return a.Action == b.Action && a.OldRef == b.OldRef && a.NewRef == b.NewRef
+// isPinOnly reports whether a result is a digest pin with no version change.
+func isPinOnly(r compare.Result) bool {
+	return r.Err == nil && r.TotalCommits == 0
+}
+
+func renderPinOnly(b *strings.Builder, results []compare.Result) {
+	b.WriteString("\n### 📌 Pinned (digest unchanged)\n")
+	b.WriteString("\n| Action | Version |\n")
+	b.WriteString("|--------|---------|\n")
+	for _, r := range results {
+		u := r.Update
+		tag := u.NewTag
+		if tag == "" {
+			tag = u.OldTag
+		}
+		if tag == "" {
+			tag = shortRef(u.NewRef)
+		}
+		fmt.Fprintf(b, "| [`%s`](%s) | `%s` |\n", u.Action, actionRepoURL(u.Action), tag)
+	}
 }
 
 func renderResult(b *strings.Builder, r compare.Result) {
