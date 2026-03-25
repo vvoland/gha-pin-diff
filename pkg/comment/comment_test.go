@@ -17,7 +17,7 @@ func TestEnsureCreatesComment(t *testing.T) {
 	mux.HandleFunc("/repos/o/r/issues/1/comments", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode([]map[string]any{})
+			_ = json.NewEncoder(w).Encode([]map[string]any{})
 			return
 		}
 		if r.Method == http.MethodPost {
@@ -46,7 +46,7 @@ func TestEnsureUpdatesExistingComment(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/o/r/issues/1/comments", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode([]map[string]any{
+		_ = json.NewEncoder(w).Encode([]map[string]any{
 			{"id": 42, "body": "old " + render.Marker, "user": map[string]string{"login": "bot"}},
 		})
 	})
@@ -78,7 +78,7 @@ func TestEnsureDeletesWhenEmpty(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/o/r/issues/1/comments", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode([]map[string]any{
+		_ = json.NewEncoder(w).Encode([]map[string]any{
 			{"id": 42, "body": "old " + render.Marker, "user": map[string]string{"login": "bot"}},
 		})
 	})
@@ -112,7 +112,7 @@ func TestEnsureNoOpWhenEmptyAndNoComment(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/o/r/issues/1/comments", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode([]map[string]any{})
+		_ = json.NewEncoder(w).Encode([]map[string]any{})
 	})
 
 	srv := httptest.NewServer(mux)

@@ -5,6 +5,9 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -o /gha-pin-diff .
 
+FROM scratch AS binary
+COPY --from=builder /gha-pin-diff /gha-pin-diff
+
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /gha-pin-diff /gha-pin-diff
