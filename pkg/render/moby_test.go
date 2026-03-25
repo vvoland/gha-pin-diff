@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pawel/gha-pin-diff/pkg/compare"
-	"github.com/pawel/gha-pin-diff/pkg/diffparser"
+	"github.com/vvoland/gha-pin-diff/pkg/compare"
+	"github.com/vvoland/gha-pin-diff/pkg/diffparser"
 )
 
 // TestMobyPR52217Render simulates the full output for moby/moby#52217.

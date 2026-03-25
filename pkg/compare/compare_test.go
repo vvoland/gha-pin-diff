@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/pawel/gha-pin-diff/pkg/diffparser"
-	"github.com/pawel/gha-pin-diff/pkg/github"
+	"github.com/vvoland/gha-pin-diff/pkg/diffparser"
+	"github.com/vvoland/gha-pin-diff/pkg/github"
 )
 
 func TestFetch(t *testing.T) {

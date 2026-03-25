@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pawel/gha-pin-diff/pkg/diffparser"
-	"github.com/pawel/gha-pin-diff/pkg/github"
+	"github.com/vvoland/gha-pin-diff/pkg/diffparser"
+	"github.com/vvoland/gha-pin-diff/pkg/github"
 )
 
 // Result holds the comparison data for a single action update.

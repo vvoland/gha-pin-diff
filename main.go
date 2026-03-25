@@ -11,11 +11,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pawel/gha-pin-diff/pkg/comment"
-	"github.com/pawel/gha-pin-diff/pkg/compare"
-	"github.com/pawel/gha-pin-diff/pkg/diffparser"
-	"github.com/pawel/gha-pin-diff/pkg/github"
-	"github.com/pawel/gha-pin-diff/pkg/render"
+	"github.com/vvoland/gha-pin-diff/pkg/comment"
+	"github.com/vvoland/gha-pin-diff/pkg/compare"
+	"github.com/vvoland/gha-pin-diff/pkg/diffparser"
+	"github.com/vvoland/gha-pin-diff/pkg/github"
+	"github.com/vvoland/gha-pin-diff/pkg/render"
 )
 
 func main() {

@@ -7,8 +7,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/pawel/gha-pin-diff/pkg/github"
-	"github.com/pawel/gha-pin-diff/pkg/render"
+	"github.com/vvoland/gha-pin-diff/pkg/github"
+	"github.com/vvoland/gha-pin-diff/pkg/render"
 )
 
 func TestEnsureCreatesComment(t *testing.T) {
