@@ -52,11 +52,11 @@ func renderResult(b *strings.Builder, r compare.Result) {
 	if u.OldTag != "" || u.NewTag != "" {
 		old := u.OldTag
 		if old == "" {
-			old = u.OldRef[:7]
+			old = shortRef(u.OldRef)
 		}
 		new := u.NewTag
 		if new == "" {
-			new = u.NewRef[:7]
+			new = shortRef(u.NewRef)
 		}
 		fmt.Fprintf(b, " `%s` → `%s`", old, new)
 	}
@@ -94,10 +94,7 @@ func renderResult(b *strings.Builder, r compare.Result) {
 	}
 
 	for _, c := range shown {
-		sha := c.SHA
-		if len(sha) > 7 {
-			sha = sha[:7]
-		}
+		sha := shortRef(c.SHA)
 		date := ""
 		if !c.Date.IsZero() {
 			date = c.Date.Format("2006-01-02")
@@ -136,4 +133,11 @@ func escapeMarkdown(s string) string {
 	s = strings.ReplaceAll(s, "|", "\\|")
 	s = strings.ReplaceAll(s, "\n", " ")
 	return s
+}
+
+func shortRef(ref string) string {
+	if len(ref) > 7 {
+		return ref[:7]
+	}
+	return ref
 }
