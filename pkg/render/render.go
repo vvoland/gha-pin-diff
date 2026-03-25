@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/vvoland/gha-pin-diff/pkg/compare"
+	"github.com/vvoland/gha-pin-diff/pkg/diffparser"
 )
 
 // Marker is the HTML comment used to identify bot comments.
@@ -23,24 +24,37 @@ func Comment(results []compare.Result) string {
 		return ""
 	}
 
-	// Sort by file, then action for stable output.
+	// Sort by action, then refs for grouping, then file for stable output.
 	slices.SortFunc(results, func(a, b compare.Result) int {
-		if c := cmp.Compare(a.Update.File, b.Update.File); c != 0 {
+		if c := cmp.Compare(a.Update.Action, b.Update.Action); c != 0 {
 			return c
 		}
-		return cmp.Compare(a.Update.Action, b.Update.Action)
+		if c := cmp.Compare(a.Update.OldRef, b.Update.OldRef); c != 0 {
+			return c
+		}
+		if c := cmp.Compare(a.Update.NewRef, b.Update.NewRef); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Update.File, b.Update.File)
 	})
 
 	var b strings.Builder
 	b.WriteString(Marker)
 	b.WriteString("\n## 🔄 Action Pin Diff\n")
 
-	for _, r := range results {
+	for i, r := range results {
+		if i > 0 && sameComparison(results[i-1].Update, r.Update) {
+			continue
+		}
 		b.WriteByte('\n')
 		renderResult(&b, r)
 	}
 
 	return b.String()
+}
+
+func sameComparison(a, b diffparser.ActionUpdate) bool {
+	return a.Action == b.Action && a.OldRef == b.OldRef && a.NewRef == b.NewRef
 }
 
 func renderResult(b *strings.Builder, r compare.Result) {
