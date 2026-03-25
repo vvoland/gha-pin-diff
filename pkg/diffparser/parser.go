@@ -48,7 +48,8 @@ func parsePatch(file, patch string) []ActionUpdate {
 	removed := make(map[string][]ref) // action -> list of removed refs
 	added := make(map[string][]ref)   // action -> list of added refs
 
-	for _, line := range strings.Split(patch, "\n") {
+	for line := range strings.Lines(patch) {
+		line = strings.TrimRight(line, "\n")
 		if len(line) == 0 {
 			continue
 		}
@@ -79,7 +80,7 @@ func parsePatch(file, patch string) []ActionUpdate {
 	for action, rems := range removed {
 		adds := added[action]
 		n := min(len(rems), len(adds))
-		for i := 0; i < n; i++ {
+		for i := range n {
 			if rems[i].sha == adds[i].sha {
 				continue
 			}

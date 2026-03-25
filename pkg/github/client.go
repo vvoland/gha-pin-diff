@@ -11,6 +11,18 @@ import (
 	"strings"
 )
 
+// APIError represents a non-OK HTTP response from the GitHub API.
+type APIError struct {
+	Method     string
+	URL        string
+	StatusCode int
+	Body       string
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("%s %s: status %d: %s", e.Method, e.URL, e.StatusCode, e.Body)
+}
+
 // Client is a minimal GitHub REST API client.
 type Client struct {
 	httpClient *http.Client
@@ -132,7 +144,7 @@ func (c *Client) CreateIssueComment(ctx context.Context, owner, repo string, iss
 	url := fmt.Sprintf("%s/repos/%s/%s/issues/%d/comments",
 		c.baseURL, owner, repo, issueNum)
 	payload := fmt.Sprintf(`{"body":%s}`, jsonString(body))
-	return c.post(ctx, url, payload)
+	return c.do(ctx, http.MethodPost, url, payload, http.StatusCreated)
 }
 
 // UpdateIssueComment updates an existing issue comment.
@@ -140,17 +152,17 @@ func (c *Client) UpdateIssueComment(ctx context.Context, owner, repo string, com
 	url := fmt.Sprintf("%s/repos/%s/%s/issues/comments/%d",
 		c.baseURL, owner, repo, commentID)
 	payload := fmt.Sprintf(`{"body":%s}`, jsonString(body))
-	return c.patch(ctx, url, payload)
+	return c.do(ctx, http.MethodPatch, url, payload, http.StatusOK)
 }
 
 // DeleteIssueComment deletes an issue comment.
 func (c *Client) DeleteIssueComment(ctx context.Context, owner, repo string, commentID int64) error {
 	url := fmt.Sprintf("%s/repos/%s/%s/issues/comments/%d",
 		c.baseURL, owner, repo, commentID)
-	return c.delete(ctx, url)
+	return c.do(ctx, http.MethodDelete, url, "", http.StatusNoContent)
 }
 
-func (c *Client) get(ctx context.Context, url string, target interface{}) error {
+func (c *Client) get(ctx context.Context, url string, target any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
@@ -165,18 +177,25 @@ func (c *Client) get(ctx context.Context, url string, target interface{}) error 
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("GET %s: status %d: %s", url, resp.StatusCode, body)
+		return &APIError{Method: http.MethodGet, URL: url, StatusCode: resp.StatusCode, Body: string(body)}
 	}
 	return json.NewDecoder(resp.Body).Decode(target)
 }
 
-func (c *Client) post(ctx context.Context, url, payload string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(payload))
+func (c *Client) do(ctx context.Context, method, url, payload string, expectStatus int) error {
+	var bodyReader io.Reader
+	if payload != "" {
+		bodyReader = strings.NewReader(payload)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
 	if err != nil {
 		return err
 	}
 	c.setHeaders(req)
-	req.Header.Set("Content-Type", "application/json")
+	if payload != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -184,50 +203,9 @@ func (c *Client) post(ctx context.Context, url, payload string) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode != expectStatus {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("POST %s: status %d: %s", url, resp.StatusCode, body)
-	}
-	return nil
-}
-
-func (c *Client) patch(ctx context.Context, url, payload string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, url, strings.NewReader(payload))
-	if err != nil {
-		return err
-	}
-	c.setHeaders(req)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("PATCH %s: status %d: %s", url, resp.StatusCode, body)
-	}
-	return nil
-}
-
-func (c *Client) delete(ctx context.Context, url string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
-	if err != nil {
-		return err
-	}
-	c.setHeaders(req)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusNoContent {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("DELETE %s: status %d: %s", url, resp.StatusCode, body)
+		return &APIError{Method: method, URL: url, StatusCode: resp.StatusCode, Body: string(body)}
 	}
 	return nil
 }
