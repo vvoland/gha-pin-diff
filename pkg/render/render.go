@@ -136,8 +136,8 @@ func renderResult(b *strings.Builder, r compare.Result) {
 	}
 
 	// Commit table
-	b.WriteString("\n| SHA | Message | Author | Date |\n")
-	b.WriteString("|-----|---------|--------|------|\n")
+	b.WriteString("\n| SHA | Message | Date |\n")
+	b.WriteString("|-----|---------|------|\n")
 
 	shown := r.Commits
 	if len(shown) > MaxCommitsShown {
@@ -154,11 +154,7 @@ func renderResult(b *strings.Builder, r compare.Result) {
 		if len(msg) > 80 {
 			msg = msg[:77] + "..."
 		}
-		author := c.Author
-		if author != "" {
-			author = "@" + author
-		}
-		fmt.Fprintf(b, "| `%s` | %s | %s | %s |\n", sha, msg, author, date)
+		fmt.Fprintf(b, "| `%s` | %s | %s |\n", sha, msg, date)
 	}
 
 	if r.TotalCommits > MaxCommitsShown {
