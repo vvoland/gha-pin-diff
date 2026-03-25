@@ -52,7 +52,6 @@ jobs:
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
 | `github-token` | Yes | `${{ github.token }}` | GitHub token for API access |
-| `pr-number` | No | Auto-detected | Pull request number |
 
 ### Permissions
 
