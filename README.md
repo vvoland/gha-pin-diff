@@ -1,35 +1,31 @@
 # gha-pin-diff
 
-A GitHub Action that comments on pull requests with a human-readable diff summary when GitHub Actions versions change.
+A GitHub Action that comments on PRs with a human-readable diff summary when GitHub Action versions change in workflow files.
 
 ## Problem
 
-When Dependabot (or a human) updates SHA-pinned actions, the PR diff is opaque:
+When Dependabot or a human updates actions in `.github/workflows/`, the diff is opaque:
 
 ```yaml
 - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 + uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 ```
 
-You can't tell what changed between those commits without manually visiting the compare URL.
+**gha-pin-diff** posts a PR comment summarizing what changed between the old and new refs.
 
-**gha-pin-diff** automates this by posting a PR comment that summarizes the commits between the old and new refs for every updated action.
+## Example Output
 
-## Example Comment
-
-> ### [`actions/checkout`](https://github.com/actions/checkout) `v4.1.1` → `v4.1.4`
+> ### [`docker/setup-buildx-action`](https://github.com/docker/setup-buildx-action) `v3` → `v4.0.0`
 >
-> **3 commits** · [Compare](https://github.com/actions/checkout/compare/b4ffde6...0ad4b8f)
+> **3 commits** · [Compare](https://github.com/docker/setup-buildx-action/compare/v3...4d04d5d)
 >
 > | SHA | Message | Author | Date |
 > |-----|---------|--------|------|
-> | `0ad4b8f` | Fix sparse checkout on Windows | @dscho | 2024-04-15 |
-> | `1e31de5` | Bump node version to 20 | @cory-miller | 2024-04-10 |
-> | `af20bd3` | Update dependencies | @dependabot | 2024-04-08 |
+> | `4d04d5d` | Merge pull request #123 from docker/v4 | @crazy-max | 2025-03-20 |
+> | `abcdef1` | chore: bump buildx to 0.20 | @crazy-max | 2025-03-19 |
+> | `1234567` | feat: add support for new driver options | @tonistiigi | 2025-03-18 |
 
 ## Usage
-
-Add this workflow to your repository:
 
 ```yaml
 name: Action Pin Diff
@@ -58,7 +54,7 @@ jobs:
 | `github-token` | Yes | `${{ github.token }}` | GitHub token for API access |
 | `pr-number` | No | Auto-detected | Pull request number |
 
-### Required Permissions
+### Permissions
 
 | Scope | Level | Reason |
 |-------|-------|--------|
@@ -67,34 +63,42 @@ jobs:
 
 ## What It Detects
 
-- **SHA-to-SHA updates**: `@<old-sha>` → `@<new-sha>` (e.g. Dependabot digest bumps)
-- **Tag-to-SHA pinning**: `@v3` → `@<sha> # v4.0.0` (initial pin + version bump)
-- **Tag-to-tag updates**: `@v4.1.1` → `@v4.1.4`
-- **Step actions**: `uses: owner/repo@<ref>`
-- **Reusable workflows**: `uses: owner/repo/.github/workflows/file.yml@<ref>`
-- Optional inline tag comments (`# v1.2.3`) are used for display
-
-## What It Does NOT Do
-
-- Block or fail the PR (informational only)
-- Post duplicate comments (existing bot comments are updated in place)
+- **SHA → SHA**: `@old-sha` → `@new-sha # v4.1.4` (Dependabot digest bumps)
+- **Tag → SHA**: `@v3` → `@sha # v4.0.0` (initial pinning + upgrade)
+- **Tag → Tag**: `@v4.1.1` → `@v4.1.4` (simple version bumps)
+- **Step actions**: `uses: owner/repo@ref`
+- **Reusable workflows**: `uses: owner/repo/.github/workflows/file.yml@ref`
+- Inline tag comments (`# v1.2.3`) are used for display when present
 
 ## Behavior
 
 | Scenario | Action |
 |----------|--------|
-| Action version changes found | Post/update comment with diff summary |
-| No relevant changes | Delete existing bot comment (if any) |
-| Compare API fails (e.g. repo deleted) | Show warning with manual compare link |
-| More than 15 commits per action | Show last 15 with link to full comparison |
+| Version changes found | Post or update comment with diff summary |
+| No changes | Delete existing bot comment, if any |
+| Compare API fails (deleted repo, etc.) | Show warning with manual compare link |
+| >15 commits per action | Show last 15, link to full comparison |
+
+The bot never fails a PR — errors are logged, not fatal.
+
+## How It Works
+
+```
+PR event
+  → fetch changed files (GitHub REST API)
+  → filter .github/workflows/**
+  → parse unified diff for `uses:` line changes
+  → compare old...new refs (GitHub compare API, concurrently)
+  → render Markdown comment
+  → create/update/delete bot comment (identified by <!-- gha-pin-diff --> marker)
+```
 
 ## Development
 
 ```bash
+go build ./...
 go test ./...
-go build .
+go vet ./...
 ```
 
-## License
-
-MIT
+Requires Go 1.26. No external dependencies.
