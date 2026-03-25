@@ -55,7 +55,7 @@ func TestCommentMarker(t *testing.T) {
 	if !strings.Contains(got, "**1 commit**") {
 		t.Error("should say '1 commit' (singular)")
 	}
-	if !strings.Contains(got, "| `abc1234` | Fix something | @alice | 2024-04-15 |") {
+	if !strings.Contains(got, "| `abc1234` | Fix something | 2024-04-15 |") {
 		t.Errorf("missing commit row, got:\n%s", got)
 	}
 }
