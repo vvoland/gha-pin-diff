@@ -6,11 +6,36 @@ inputs:
     required: true
     default: ${{ github.token }}
 runs:
-  using: 'docker'
-  image: 'Dockerfile'
-  env:
-    GITHUB_TOKEN: ${{ inputs.github-token }}
-    PR_NUMBER: ${{ github.event.pull_request.number }}
+  using: 'composite'
+  steps:
+    - name: Run gha-pin-diff
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+        ARCH="$(uname -m)"
+        case "$ARCH" in
+          x86_64)  ARCH="amd64" ;;
+          aarch64) ARCH="arm64" ;;
+        esac
+
+        EXT=""
+        case "$OS" in
+          mingw*|msys*|cygwin*|windows_nt)
+            OS="windows"
+            EXT=".exe"
+            ;;
+        esac
+
+        BIN="${{ github.action_path }}/dist/${OS}/${ARCH}/gha-pin-diff${EXT}"
+        if [ ! -f "$BIN" ]; then
+          echo "::error::No pre-built binary for ${OS}/${ARCH}"
+          exit 1
+        fi
+        chmod +x "$BIN"
+        exec "$BIN"
 branding:
   icon: 'git-pull-request'
   color: 'blue'

@@ -117,14 +117,32 @@ go vet ./...
 
 ### Reproducible Binary
 
-Build a reproducible binary using `docker buildx bake`:
+Build a reproducible binary for the host platform using `docker buildx bake`:
 
 ```bash
 docker buildx bake
 # Output: ./build/gha-pin-diff
 ```
 
+### Dist Binaries
+
+The action ships pre-built binaries in `dist/` for all supported platforms.
+Rebuild them with:
+
+```bash
+docker buildx bake dist
+```
+
+This produces binaries under `dist/<os>/<arch>/gha-pin-diff`:
+
+- `linux/amd64`, `linux/arm64`
+- `darwin/amd64`, `darwin/arm64`
+- `windows/amd64`, `windows/arm64`
+
 The build uses `-trimpath`, `-buildvcs=false`, `-ldflags="-s -w"`, and `SOURCE_DATE_EPOCH=0`
-to ensure the binary is reproducible across builds.
+to ensure binaries are reproducible across builds.
+
+CI verifies that `dist/` is up to date — if you change Go source, you must rebuild
+and commit the dist binaries.
 
 Requires Go 1.26. No external dependencies.
