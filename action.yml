@@ -31,7 +31,9 @@ runs:
 
         BIN="${{ github.action_path }}/dist/${OS}/${ARCH}/gha-pin-diff${EXT}"
         if [ ! -f "$BIN" ]; then
-          echo "::error::No pre-built binary for ${OS}/${ARCH}"
+          echo "::error::No pre-built binary for ${OS}/${ARCH} (checked: ${BIN})"
+          echo "Available binaries in dist/:"
+          find "${{ github.action_path }}/dist" -type f 2>/dev/null || true
           exit 1
         fi
         chmod +x "$BIN"
