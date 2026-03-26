@@ -44,51 +44,40 @@ export function parse(patches: Record<string, string>): ActionUpdate[] {
   return updates;
 }
 
+/** Returns the first whitespace-delimited token, or "" if empty. */
+function firstToken(s: string): string {
+  const t = s.trimStart();
+  const sp = t.indexOf(" ");
+  if (sp < 0) return t;
+  return t.substring(0, sp);
+}
+
 /**
  * Parses a `uses:` line and returns [action, ref, tag] or null.
  *
- * Expects the content after the diff prefix (- or +), e.g.:
- *   "      - uses: actions/checkout@abc123 # v4.1.1"
- *
- * Action target is owner/repo or owner/repo/path.
- * Ref is everything between @ and whitespace.
- * Tag is the first non-whitespace token after "# " (optional).
+ * Format: uses: owner/repo@ref  OR  uses: owner/repo@ref # tag
  */
 function parseUses(s: string): [string, string, string] | null {
-  const idx = s.indexOf("uses:");
-  if (idx < 0) return null;
+  const usesIdx = s.indexOf("uses:");
+  if (usesIdx < 0) return null;
+  const afterUses = s.substring(usesIdx + 5).trimStart();
 
-  // Skip "uses:" and whitespace.
-  let i = idx + 5;
-  while (i < s.length && s[i] === " ") i++;
-  if (i >= s.length) return null;
-
-  // Read action target (up to @).
-  const atIdx = s.indexOf("@", i);
+  // Split "owner/repo@ref # tag" at @.
+  const atIdx = afterUses.indexOf("@");
   if (atIdx < 0) return null;
-  const action = s.substring(i, atIdx);
-
-  // Action must contain at least one slash (owner/repo).
+  const action = afterUses.substring(0, atIdx);
   if (action.indexOf("/") < 0) return null;
 
-  // Read ref (non-whitespace after @).
-  let j = atIdx + 1;
-  while (j < s.length && s[j] !== " " && s[j] !== "\t") j++;
-  if (j === atIdx + 1) return null;
-  const ref = s.substring(atIdx + 1, j);
+  // Everything after @ may be "ref" or "ref # tag".
+  const afterAt = afterUses.substring(atIdx + 1);
+  const hashIdx = afterAt.indexOf("#");
 
-  // Look for optional tag comment: skip whitespace, expect "# ", then read token.
-  let tag = "";
-  while (j < s.length && (s[j] === " " || s[j] === "\t")) j++;
-  if (j < s.length && s[j] === "#") {
-    j++;
-    while (j < s.length && (s[j] === " " || s[j] === "\t")) j++;
-    const tagStart = j;
-    while (j < s.length && s[j] !== " " && s[j] !== "\t") j++;
-    if (j > tagStart) {
-      tag = s.substring(tagStart, j);
-    }
-  }
+  const ref = hashIdx < 0
+    ? afterAt.trim()
+    : afterAt.substring(0, hashIdx).trim();
+  if (!ref) return null;
+
+  const tag = hashIdx < 0 ? "" : firstToken(afterAt.substring(hashIdx + 1));
 
   return [action, ref, tag];
 }
