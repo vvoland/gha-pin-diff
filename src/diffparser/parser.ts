@@ -76,7 +76,8 @@ function parsePatch(file: string, patch: string): ActionUpdate[] {
     const adds = added.get(action) || [];
     const n = Math.min(rems.length, adds.length);
     for (let i = 0; i < n; i++) {
-      if (rems[i].raw === adds[i].raw) continue;
+      if (rems[i].raw === adds[i].raw && rems[i].tag === adds[i].tag)
+        continue;
       updates.push({
         action,
         oldRef: rems[i].raw,

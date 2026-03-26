@@ -155,13 +155,29 @@ describe("parse", () => {
             want: [],
         },
         {
-            name: "same ref - skip",
+            name: "same ref and tag - skip",
             patches: {
                 ".github/workflows/ci.yml": "@@ -10,3 +10,3 @@\n" +
                     `-      - uses: actions/checkout@${sha40a} # v4.1.1\n` +
                     `+      - uses: actions/checkout@${sha40a} # v4.1.1`,
             },
             want: [],
+        },
+        {
+            name: "same ref but tag comment changed",
+            patches: {
+                ".github/workflows/ci.yml": "@@ -10,3 +10,3 @@\n" +
+                    `-      - uses: actions/checkout@${sha40a} # v6.0.2\n` +
+                    `+      - uses: actions/checkout@${sha40a} # v6.0.1`,
+            },
+            want: [
+                {
+                    action: "actions/checkout",
+                    oldRef: sha40a, newRef: sha40a,
+                    oldTag: "v6.0.2", newTag: "v6.0.1",
+                    file: ".github/workflows/ci.yml",
+                },
+            ],
         },
         {
             name: "same tag ref - skip",
