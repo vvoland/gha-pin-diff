@@ -6,14 +6,8 @@ inputs:
     required: true
     default: ${{ github.token }}
 runs:
-  using: 'composite'
-  steps:
-    - name: Run gha-pin-diff
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-        PR_NUMBER: ${{ github.event.pull_request.number }}
-      run: node "${{ github.action_path }}/dist/main.js"
+  using: 'node24'
+  main: 'dist/main.js'
 branding:
   icon: 'git-pull-request'
   color: 'blue'
