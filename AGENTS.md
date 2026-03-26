@@ -1,47 +1,46 @@
-# AGENTS.md
-
-Go 1.26 project. Zero external dependencies.
+TypeScript project. Zero external runtime dependencies. Vitest for testing.
 
 ## Build & Test
 
 ```
-go build ./...
-go test ./...
-go vet ./...
+npm install
+npm run build
+npm test
+npx tsc --noEmit
 ```
 
-## Dist Binaries
+## Dist
 
-Pre-built binaries are committed in `dist/` and shipped with the action (composite action).
-Rebuild with `docker buildx bake dist`. CI checks that `dist/` is up to date.
+Compiled JavaScript is committed in `dist/` and shipped with the action (composite action).
+Rebuild with `npm run build`. CI checks that `dist/` is up to date.
 
 ## Architecture
 
-`main.go` orchestrates a pipeline: fetch PR files → parse diffs → compare refs → verify tag/SHA → render markdown → post comment.
+`src/main.ts` orchestrates a pipeline: fetch PR files → parse diffs → compare refs → verify tag/SHA → render markdown → post comment.
 
 ```
-main.go                  Entry point. Reads env vars, runs pipeline.
-pkg/diffparser/          Parses unified diff patches for `uses:` ref changes.
-pkg/github/              Thin GitHub REST client. Returns *APIError on non-OK status.
-pkg/compare/             Fetches commit comparisons concurrently (sync.WaitGroup.Go).
-pkg/pinverify/           Verifies SHA pins match their inline tag comments.
-pkg/render/              Renders Markdown comment. Marker: <!-- gha-pin-diff -->
-pkg/comment/             Upserts/deletes the bot comment on a PR.
-dist/                    Pre-built binaries (linux/darwin/windows × amd64/arm64).
+src/main.ts              Entry point. Reads env vars, runs pipeline.
+src/diffparser/          Parses unified diff patches for `uses:` ref changes.
+src/github/              Thin GitHub REST client. Throws APIError on non-OK status.
+src/compare/             Fetches commit comparisons concurrently (Promise.all).
+src/pinverify/           Verifies SHA pins match their inline tag comments.
+src/render/              Renders Markdown comment. Marker: <!-- gha-pin-diff -->
+src/comment/             Upserts/deletes the bot comment on a PR.
+dist/                    Compiled JavaScript output.
 ```
 
 ## Key types
 
-- `diffparser.ActionUpdate` — one action ref change (OldRef/NewRef can be SHA or tag)
-- `github.APIError` — typed HTTP error, use `errors.AsType[*github.APIError]`
-- `compare.Result` — comparison data per action, includes `.Err` for partial failures
-- `pinverify.Mismatch` — a tag comment that doesn't match the pinned SHA
-- `render.Marker` — HTML comment used to find/update bot comments
+- `ActionUpdate` — one action ref change (oldRef/newRef can be SHA or tag)
+- `APIError` — typed HTTP error class
+- `Result` — comparison data per action, includes `.err` for partial failures
+- `Mismatch` — a tag comment that doesn't match the pinned SHA
+- `MARKER` — HTML comment used to find/update bot comments
 
 ## Conventions
 
-- No external dependencies. `net/http` only for API calls.
-- Tests use `httptest.NewServer` for API mocking and `t.Context()` for context.
-- `*_test.go` files named `moby_test.go` are integration tests using real PR data.
-- Errors from the GitHub API are always `*github.APIError` (pointer receiver).
+- No external runtime dependencies. Native `fetch` for API calls.
+- Tests use `node:http` `createServer` for API mocking.
+- `*.test.ts` files named `moby.test.ts` are integration tests using real PR data.
+- Errors from the GitHub API are always `APIError` instances.
 - The action never fails a PR — runtime errors are logged, not fatal.
