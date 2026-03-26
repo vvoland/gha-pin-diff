@@ -45,6 +45,21 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
+  build:
+    name: Build (Docker)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3
+
+      - name: Build and test via docker buildx bake
+        run: |
+          docker buildx bake \
+            --set '*.cache-from=type=gha' \
+            --set '*.cache-to=type=gha,mode=max'
+
   dist:
     name: Check dist
     runs-on: ubuntu-latest
@@ -72,7 +87,7 @@ jobs:
 
   passed:
     name: CI passed
-    needs: [test, typecheck, dist]
+    needs: [test, typecheck, build, dist]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -80,6 +95,7 @@ jobs:
         run: |
           if [ "${{ needs.test.result }}" != "success" ] || \
              [ "${{ needs.typecheck.result }}" != "success" ] || \
+             [ "${{ needs.build.result }}" != "success" ] || \
              [ "${{ needs.dist.result }}" != "success" ]; then
             echo "❌ One or more CI jobs failed"
             exit 1
