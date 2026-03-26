@@ -94,13 +94,9 @@ async function fetchOne(client: Client, u: ActionUpdate): Promise<Result> {
 export function actionOwnerRepo(
   action: string
 ): [string, string] | null {
-  const idx = action.indexOf("/");
-  if (idx < 0) return null;
-  const owner = action.substring(0, idx);
-  const rest = action.substring(idx + 1);
-  const slashIdx = rest.indexOf("/");
-  const repo = slashIdx >= 0 ? rest.substring(0, slashIdx) : rest;
-  return [owner, repo];
+  const parts = action.split("/");
+  if (parts.length < 2) return null;
+  return [parts[0], parts[1]];
 }
 
 function firstLine(s: string): string {
