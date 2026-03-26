@@ -1,15 +1,7 @@
+const shaRe = /^[0-9a-f]{40}$/;
 /** Reports whether s is a 40-character hexadecimal string. */
 export function isSHA(s) {
-    if (s.length !== 40)
-        return false;
-    for (let i = 0; i < 40; i++) {
-        const c = s.charCodeAt(i);
-        // 0-9: 48-57, a-f: 97-102
-        if ((c >= 48 && c <= 57) || (c >= 97 && c <= 102))
-            continue;
-        return false;
-    }
-    return true;
+    return shaRe.test(s);
 }
 function bestTag(r) {
     if (r.tag)
@@ -30,14 +22,6 @@ export function parse(patches) {
     }
     return updates;
 }
-/** Returns the first whitespace-delimited token, or "" if empty. */
-function firstToken(s) {
-    const t = s.trimStart();
-    const sp = t.indexOf(" ");
-    if (sp < 0)
-        return t;
-    return t.substring(0, sp);
-}
 /**
  * Parses a `uses:` line and returns [action, ref, tag] or null.
  *
@@ -48,23 +32,20 @@ function parseUses(s) {
     if (usesIdx < 0)
         return null;
     const afterUses = s.substring(usesIdx + 5).trimStart();
-    // Split "owner/repo@ref # tag" at @.
-    const atIdx = afterUses.indexOf("@");
-    if (atIdx < 0)
+    const [actionPart, ...rest] = afterUses.split("@");
+    if (rest.length === 0)
         return null;
-    const action = afterUses.substring(0, atIdx);
-    if (action.indexOf("/") < 0)
+    if (!actionPart.includes("/"))
         return null;
-    // Everything after @ may be "ref" or "ref # tag".
-    const afterAt = afterUses.substring(atIdx + 1);
-    const hashIdx = afterAt.indexOf("#");
-    const ref = hashIdx < 0
-        ? afterAt.trim()
-        : afterAt.substring(0, hashIdx).trim();
+    const afterAt = rest.join("@");
+    const [refPart, ...commentParts] = afterAt.split("#");
+    const ref = refPart.trim();
     if (!ref)
         return null;
-    const tag = hashIdx < 0 ? "" : firstToken(afterAt.substring(hashIdx + 1));
-    return [action, ref, tag];
+    const tag = commentParts.length > 0
+        ? commentParts.join("#").trimStart().split(/\s/)[0]
+        : "";
+    return [actionPart, ref, tag];
 }
 function parsePatch(file, patch) {
     const removed = new Map();
