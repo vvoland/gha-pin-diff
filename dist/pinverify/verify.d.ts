@@ -1,4 +1,4 @@
-import type { ActionUpdate } from "../diffparser/parser.js";
+import { type ActionUpdate } from "../diffparser/parser.js";
 import type { Client } from "../github/client.js";
 /** Reports a tag comment that doesn't match the pinned SHA. */
 export interface Mismatch {

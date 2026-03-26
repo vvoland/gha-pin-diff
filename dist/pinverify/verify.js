@@ -1,8 +1,4 @@
-function isSHA(s) {
-    if (s.length !== 40)
-        return false;
-    return /^[0-9a-f]{40}$/.test(s);
-}
+import { isSHA } from "../diffparser/parser.js";
 function actionOwnerRepo(action) {
     const idx = action.indexOf("/");
     if (idx < 0)

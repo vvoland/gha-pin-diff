@@ -1,4 +1,4 @@
-import type { ActionUpdate } from "../diffparser/parser.js";
+import { isSHA, type ActionUpdate } from "../diffparser/parser.js";
 import type { Client } from "../github/client.js";
 
 /** Reports a tag comment that doesn't match the pinned SHA. */
@@ -6,11 +6,6 @@ export interface Mismatch {
   update: ActionUpdate;
   tag: string; // the tag from the comment (e.g. "v6.2.0")
   expectSHA: string; // SHA the tag actually resolves to
-}
-
-function isSHA(s: string): boolean {
-  if (s.length !== 40) return false;
-  return /^[0-9a-f]{40}$/.test(s);
 }
 
 function actionOwnerRepo(action: string): [string, string] | null {
