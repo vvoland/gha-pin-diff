@@ -63,14 +63,10 @@ async function fetchOne(client, u) {
  * "org/repo/.github/workflows/x.yml" -> ["org", "repo"]
  */
 export function actionOwnerRepo(action) {
-    const idx = action.indexOf("/");
-    if (idx < 0)
+    const parts = action.split("/");
+    if (parts.length < 2)
         return null;
-    const owner = action.substring(0, idx);
-    const rest = action.substring(idx + 1);
-    const slashIdx = rest.indexOf("/");
-    const repo = slashIdx >= 0 ? rest.substring(0, slashIdx) : rest;
-    return [owner, repo];
+    return [parts[0], parts[1]];
 }
 function firstLine(s) {
     const idx = s.indexOf("\n");
