@@ -1,4 +1,4 @@
-TypeScript project. Zero external runtime dependencies. Vitest for testing.
+TypeScript project. Zero external runtime dependencies. `node:test` for testing.
 
 ## Build & Test
 
@@ -40,6 +40,7 @@ dist/                    Compiled JavaScript output.
 ## Conventions
 
 - No external runtime dependencies. Native `fetch` for API calls.
+- Tests use `node:test` + `node:assert` (zero test dependencies).
 - Tests use `node:http` `createServer` for API mocking.
 - `*.test.ts` files named `moby.test.ts` are integration tests using real PR data.
 - Errors from the GitHub API are always `APIError` instances.

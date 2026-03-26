@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { ensure } from "./comment.js";
 import { Client } from "../github/client.js";
@@ -48,7 +49,7 @@ describe("ensure", () => {
       const client = new Client("");
       client.setBaseURL(url);
       await ensure(client, "o", "r", 1, "new body");
-      expect(created).toBe(true);
+      assert.ok(created, "expected comment to be created");
     } finally {
       close();
     }
@@ -83,7 +84,7 @@ describe("ensure", () => {
       const client = new Client("");
       client.setBaseURL(url);
       await ensure(client, "o", "r", 1, "updated body");
-      expect(updated).toBe(true);
+      assert.ok(updated, "expected comment to be updated");
     } finally {
       close();
     }
@@ -121,7 +122,7 @@ describe("ensure", () => {
       const client = new Client("");
       client.setBaseURL(url);
       await ensure(client, "o", "r", 1, "");
-      expect(deleted).toBe(true);
+      assert.ok(deleted, "expected comment to be deleted when body is empty");
     } finally {
       close();
     }
@@ -145,7 +146,6 @@ describe("ensure", () => {
       const client = new Client("");
       client.setBaseURL(url);
       await ensure(client, "o", "r", 1, "");
-      // Should not throw
     } finally {
       close();
     }

@@ -1,11 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { parse } from "./parser.js";
 
-/**
- * Tests parsing the real diff from moby/moby#52217
- * which pins docker/setup-buildx-action from tag @v3 to SHA @4d04d5d... # v4.0.0
- * across many workflow files.
- */
 describe("moby PR 52217", () => {
   it("parses all workflow file changes", () => {
     const sha = "4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd";
@@ -34,14 +30,14 @@ describe("moby PR 52217", () => {
     };
 
     const got = parse(patches);
-    expect(got).toHaveLength(3);
+    assert.equal(got.length, 3);
 
     for (const u of got) {
-      expect(u.action).toBe("docker/setup-buildx-action");
-      expect(u.oldRef).toBe("v3");
-      expect(u.newRef).toBe(sha);
-      expect(u.oldTag).toBe("v3");
-      expect(u.newTag).toBe("v4.0.0");
+      assert.equal(u.action, "docker/setup-buildx-action");
+      assert.equal(u.oldRef, "v3");
+      assert.equal(u.newRef, sha);
+      assert.equal(u.oldTag, "v3");
+      assert.equal(u.newTag, "v4.0.0");
     }
   });
 });

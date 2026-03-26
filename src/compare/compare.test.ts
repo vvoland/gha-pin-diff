@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { fetch as compareFetch, actionOwnerRepo } from "./compare.js";
 import { Client, APIError } from "../github/client.js";
@@ -71,17 +72,18 @@ describe("fetch", () => {
       ];
 
       const results = await compareFetch(client, updates);
-      expect(results).toHaveLength(1);
+      assert.equal(results.length, 1);
 
       const r = results[0];
-      expect(r.err).toBeNull();
-      expect(r.totalCommits).toBe(2);
-      expect(r.compareURL).toBe(
+      assert.equal(r.err, null);
+      assert.equal(r.totalCommits, 2);
+      assert.equal(
+        r.compareURL,
         "https://github.com/actions/checkout/compare/aaa...bbb"
       );
-      expect(r.commits).toHaveLength(2);
-      expect(r.commits[0].message).toBe("Fix something");
-      expect(r.commits[0].author).toBe("alice");
+      assert.equal(r.commits.length, 2);
+      assert.equal(r.commits[0].message, "Fix something");
+      assert.equal(r.commits[0].author, "alice");
     } finally {
       close();
     }
@@ -109,10 +111,10 @@ describe("fetch", () => {
       ];
 
       const results = await compareFetch(client, updates);
-      expect(results).toHaveLength(1);
-      expect(results[0].err).not.toBeNull();
-      expect(results[0].err).toBeInstanceOf(APIError);
-      expect((results[0].err as APIError).statusCode).toBe(404);
+      assert.equal(results.length, 1);
+      assert.notEqual(results[0].err, null);
+      assert.ok(results[0].err instanceof APIError);
+      assert.equal((results[0].err as APIError).statusCode, 404);
     } finally {
       close();
     }
@@ -121,16 +123,17 @@ describe("fetch", () => {
 
 describe("actionOwnerRepo", () => {
   it("parses simple action", () => {
-    expect(actionOwnerRepo("actions/checkout")).toEqual(["actions", "checkout"]);
+    assert.deepEqual(actionOwnerRepo("actions/checkout"), ["actions", "checkout"]);
   });
 
   it("parses reusable workflow", () => {
-    expect(
-      actionOwnerRepo("org/repo/.github/workflows/deploy.yml")
-    ).toEqual(["org", "repo"]);
+    assert.deepEqual(
+      actionOwnerRepo("org/repo/.github/workflows/deploy.yml"),
+      ["org", "repo"]
+    );
   });
 
   it("returns null for invalid input", () => {
-    expect(actionOwnerRepo("invalid")).toBeNull();
+    assert.equal(actionOwnerRepo("invalid"), null);
   });
 });

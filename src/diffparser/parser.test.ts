@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { parse, type ActionUpdate } from "./parser.js";
 
 const sha40a = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -216,7 +217,7 @@ describe("parse", () => {
   for (const tt of tests) {
     it(tt.name, () => {
       const got = parse(tt.patches);
-      expect(updatesEqual(got, tt.want)).toBe(true);
+      assert.ok(updatesEqual(got, tt.want), `Parse() =\n  ${JSON.stringify(got)}\nwant\n  ${JSON.stringify(tt.want)}`);
     });
   }
 });
