@@ -115,4 +115,16 @@ go test ./...
 go vet ./...
 ```
 
+### Reproducible Binary
+
+Build a reproducible binary using `docker buildx bake`:
+
+```bash
+docker buildx bake
+# Output: ./build/gha-pin-diff
+```
+
+The build uses `-trimpath`, `-buildvcs=false`, `-ldflags="-s -w"`, and `SOURCE_DATE_EPOCH=0`
+to ensure the binary is reproducible across builds.
+
 Requires Go 1.26. No external dependencies.

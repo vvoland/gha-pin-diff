@@ -117,11 +117,9 @@ jobs:
 
       - name: Build binary target
         run: |
-          docker buildx build . \
-            --target binary \
-            --output type=local,dest=build \
-            --cache-from type=gha \
-            --cache-to type=gha,mode=max
+          docker buildx bake binary \
+            --set '*.cache-from=type=gha' \
+            --set '*.cache-to=type=gha,mode=max'
 
   passed:
     name: CI passed
