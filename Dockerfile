@@ -8,17 +8,17 @@ RUN --mount=type=cache,target=/root/.npm \
     --mount=type=bind,source=package-lock.json,destination=package-lock.json \
     npm ci
 
-COPY . .
-
-RUN npm run build && \
-    npm test
+RUN --mount=type=cache,target=/root/.npm \
+    --mount=type=bind,source=.,rw \
+    npm run build -- --outDir /out && \
+    node --test /out/**/*.test.js
 
 # dist
 FROM scratch AS dist
-COPY --from=build /src/dist/ /
+COPY --from=build /out/ /
 
 # final
 FROM node:20-alpine AS final
 WORKDIR /app
-COPY --from=build /src/dist/ ./dist/
+COPY --from=build /out/ ./dist/
 ENTRYPOINT ["node", "dist/main.js"]
