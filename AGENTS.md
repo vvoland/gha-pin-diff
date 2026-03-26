@@ -11,7 +11,7 @@ npx tsc --noEmit
 
 ## Dist
 
-Compiled JavaScript is committed in `dist/` and shipped with the action (composite action).
+Compiled JavaScript is committed in `dist/` and shipped with the action (node24 JavaScript action).
 Rebuild with `npm run build`. CI checks that `dist/` is up to date.
 
 ## Architecture

@@ -5,8 +5,12 @@ import { Client } from "./github/client.js";
 import { check, formatMismatch } from "./pinverify/verify.js";
 import { comment } from "./render/render.js";
 import path from "node:path";
+import { readFileSync } from "node:fs";
+function getInput(name) {
+    return process.env[`INPUT_${name.toUpperCase()}`];
+}
 async function run() {
-    const token = process.env.GITHUB_TOKEN;
+    const token = getInput("GITHUB-TOKEN") ?? process.env.GITHUB_TOKEN;
     if (!token)
         throw new Error("GITHUB_TOKEN is required");
     const repo = process.env.GITHUB_REPOSITORY; // "owner/repo"
@@ -54,13 +58,27 @@ async function run() {
     return ensure(client, owner, repoName, pr, body);
 }
 function getPRNumber() {
+    // Try PR_NUMBER env var first (backwards compat).
     const s = process.env.PR_NUMBER;
-    if (!s)
-        throw new Error("PR_NUMBER is not set (is the trigger a pull_request event?)");
-    const n = parseInt(s, 10);
-    if (isNaN(n))
-        throw new Error(`invalid PR_NUMBER "${s}"`);
-    return n;
+    if (s) {
+        const n = parseInt(s, 10);
+        if (!isNaN(n))
+            return n;
+    }
+    // Fall back to GITHUB_EVENT_PATH (standard for node actions).
+    const eventPath = process.env.GITHUB_EVENT_PATH;
+    if (eventPath) {
+        try {
+            const event = JSON.parse(readFileSync(eventPath, "utf-8"));
+            const num = event?.pull_request?.number ?? event?.number;
+            if (typeof num === "number")
+                return num;
+        }
+        catch {
+            // ignore parse errors
+        }
+    }
+    throw new Error("PR_NUMBER is not set and could not be read from GITHUB_EVENT_PATH");
 }
 function isWorkflowFile(filePath) {
     const dir = path.dirname(filePath);
