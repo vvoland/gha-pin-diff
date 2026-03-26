@@ -162,6 +162,18 @@ func (c *Client) DeleteIssueComment(ctx context.Context, owner, repo string, com
 	return c.do(ctx, http.MethodDelete, url, "", http.StatusNoContent)
 }
 
+// ResolveRefSHA resolves a git ref (tag, branch, or SHA) to the commit SHA it points to.
+func (c *Client) ResolveRefSHA(ctx context.Context, owner, repo, ref string) (string, error) {
+	url := fmt.Sprintf("%s/repos/%s/%s/commits/%s", c.baseURL, owner, repo, ref)
+	var result struct {
+		SHA string `json:"sha"`
+	}
+	if err := c.get(ctx, url, &result); err != nil {
+		return "", fmt.Errorf("resolve ref %s: %w", ref, err)
+	}
+	return result.SHA, nil
+}
+
 func (c *Client) get(ctx context.Context, url string, target any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

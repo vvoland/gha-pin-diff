@@ -51,7 +51,7 @@ func TestMobyPR52217Render(t *testing.T) {
 		},
 	}
 
-	got := Comment(results)
+	got := Comment(results, nil)
 
 	// Print the full output so we can eyeball it.
 	t.Logf("Rendered comment:\n%s", got)
