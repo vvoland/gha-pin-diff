@@ -1,21 +1,12 @@
 import { isSHA, type ActionUpdate } from "../diffparser/parser.js";
 import type { Client } from "../github/client.js";
+import { actionOwnerRepo } from "../compare/compare.js";
 
 /** Reports a tag comment that doesn't match the pinned SHA. */
 export interface Mismatch {
   update: ActionUpdate;
   tag: string; // the tag from the comment (e.g. "v6.2.0")
   expectSHA: string; // SHA the tag actually resolves to
-}
-
-function actionOwnerRepo(action: string): [string, string] | null {
-  const idx = action.indexOf("/");
-  if (idx < 0) return null;
-  const owner = action.substring(0, idx);
-  const rest = action.substring(idx + 1);
-  const slashIdx = rest.indexOf("/");
-  const repo = slashIdx >= 0 ? rest.substring(0, slashIdx) : rest;
-  return [owner, repo];
 }
 
 /**
