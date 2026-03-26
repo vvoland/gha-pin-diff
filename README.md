@@ -6,7 +6,7 @@ A GitHub Action that comments on PRs with a human-readable diff summary when Git
 
 When Dependabot or a human updates actions in `.github/workflows/`, the diff is opaque:
 
-```yaml
+```diff
 - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 + uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 ```
@@ -55,8 +55,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: vvoland/gha-pin-diff@v1
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ### Inputs
@@ -94,27 +92,6 @@ jobs:
 
 The bot never fails a PR — errors are logged, not fatal.
 
-## How It Works
-
-```
-PR event
-  → fetch changed files (GitHub REST API)
-  → filter .github/workflows/**
-  → parse unified diff for `uses:` line changes
-  → compare old...new refs (GitHub compare API, concurrently)
-  → verify tag/SHA consistency (resolve tags concurrently)
-  → render Markdown comment
-  → create/update/delete bot comment (identified by <!-- gha-pin-diff --> marker)
-```
-
-## Development
-
-```bash
-go build ./...
-go test ./...
-go vet ./...
-```
-
 ### Reproducible Binary
 
 Build a reproducible binary for the host platform using `docker buildx bake`:
@@ -144,5 +121,3 @@ to ensure binaries are reproducible across builds.
 
 CI verifies that `dist/` is up to date — if you change Go source, you must rebuild
 and commit the dist binaries.
-
-Requires Go 1.26. No external dependencies.
