@@ -1,17 +1,26 @@
 # gha-pin-diff
 
-A GitHub Action that comments on PRs with a human-readable diff summary when GitHub Action versions change in workflow files.
+A GitHub Action that verifies SHA-pinned actions in workflow files and comments on PRs with a diff summary.
 
-## Problem
+## Why
 
-When Dependabot or a human updates actions in `.github/workflows/`, the diff is opaque:
+Dependabot already shows commit information when it bumps action versions.
+But when a **human** updates pinned actions — bulk re-pins, initial pinning, or manual upgrades — the PR diff is opaque:
 
 ```diff
 - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 + uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 ```
 
-**gha-pin-diff** posts a PR comment summarizing what changed between the old and new refs.
+Nobody is going to look up what changed between those two SHAs.
+**gha-pin-diff** posts a PR comment summarizing the commits between the old and new refs.
+
+More importantly, it **catches tag/SHA mismatches** — a wrong inline comment is invisible in review:
+
+```yaml
+# Looks fine, but the SHA is actually v6.0.2 — the comment lies.
+- uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.1
+```
 
 ## Example Output
 
@@ -19,15 +28,15 @@ When Dependabot or a human updates actions in `.github/workflows/`, the diff is 
 >
 > **3 commits** · [Compare](https://github.com/docker/setup-buildx-action/compare/v3...4d04d5d)
 >
-> | SHA | Message | Author | Date |
-> |-----|---------|--------|------|
-> | `4d04d5d` | Merge pull request #123 from docker/v4 | @crazy-max | 2025-03-20 |
-> | `abcdef1` | chore: bump buildx to 0.20 | @crazy-max | 2025-03-19 |
-> | `1234567` | feat: add support for new driver options | @tonistiigi | 2025-03-18 |
+> | SHA | Message | Date |
+> |-----|---------|------|
+> | `4d04d5d` | Merge pull request #123 from docker/v4 | 2025-03-20 |
+> | `abcdef1` | chore: bump buildx to 0.20 | 2025-03-19 |
+> | `1234567` | feat: add support for new driver options | 2025-03-18 |
 
 ### Tag / SHA Mismatch Warning
 
-When the pinned SHA doesn't match the tag in the inline comment, a warning is shown:
+When the pinned SHA doesn't match the tag in the inline comment:
 
 > ### ⚠️ Tag / SHA Mismatch
 >
@@ -35,7 +44,9 @@ When the pinned SHA doesn't match the tag in the inline comment, a warning is sh
 >
 > | Action | Tag | Expected SHA | Pinned SHA |
 > |--------|-----|-------------|------------|
-> | `actions/checkout` | `v6.2.0` | `bbbbbbb` | `aaaaaaa` |
+> | `actions/checkout` | `v6.0.1` | `8e8c483` | `de0fac2` |
+
+This catches typos, stale comments, and copy-paste errors that are impossible to spot in review.
 
 ## Usage
 
@@ -72,13 +83,13 @@ jobs:
 
 ## What It Detects
 
-- **SHA → SHA**: `@old-sha` → `@new-sha # v4.1.4` (Dependabot digest bumps)
+- **SHA → SHA**: `@old-sha` → `@new-sha # v4.1.4` (digest bumps)
 - **Tag → SHA**: `@v3` → `@sha # v4.0.0` (initial pinning + upgrade)
 - **Tag → Tag**: `@v4.1.1` → `@v4.1.4` (simple version bumps)
-- **Tag / SHA mismatch**: `@sha # v6.2.0` where the SHA doesn't match what `v6.2.0` resolves to
+- **Tag comment changes**: `@sha # v6.0.2` → `@sha # v6.0.1` (same SHA, different comment)
+- **Tag / SHA mismatch**: pinned SHA doesn't match what the tag comment resolves to
 - **Step actions**: `uses: owner/repo@ref`
 - **Reusable workflows**: `uses: owner/repo/.github/workflows/file.yml@ref`
-- Inline tag comments (`# v1.2.3`) are used for display when present
 
 ## Behavior
 
