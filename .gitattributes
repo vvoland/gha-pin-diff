@@ -1,2 +1,1 @@
-dist/** binary
-dist/**/*.exe binary
+dist/** linguist-generated

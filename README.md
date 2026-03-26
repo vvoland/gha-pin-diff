@@ -92,32 +92,20 @@ jobs:
 
 The bot never fails a PR — errors are logged, not fatal.
 
-### Reproducible Binary
+## Development
 
-Build a reproducible binary for the host platform using `docker buildx bake`:
-
-```bash
-docker buildx bake
-# Output: ./build/gha-pin-diff
-```
-
-### Dist Binaries
-
-The action ships pre-built binaries in `dist/` for all supported platforms.
-Rebuild them with:
+### Build
 
 ```bash
-docker buildx bake dist
+npm install
+npm run build
 ```
 
-This produces binaries under `dist/<os>/<arch>/gha-pin-diff`:
+### Test
 
-- `linux/amd64`, `linux/arm64`
-- `darwin/amd64`, `darwin/arm64`
-- `windows/amd64`, `windows/arm64`
+```bash
+npm test
+```
 
-The build uses `-trimpath`, `-buildvcs=false`, `-ldflags="-s -w"`, and `SOURCE_DATE_EPOCH=0`
-to ensure binaries are reproducible across builds.
-
-CI verifies that `dist/` is up to date — if you change Go source, you must rebuild
-and commit the dist binaries.
+The `dist/` directory contains the compiled JavaScript and is committed to the repo
+so the action can run directly without a build step.
