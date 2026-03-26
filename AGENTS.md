@@ -10,6 +10,11 @@ go test ./...
 go vet ./...
 ```
 
+## Dist Binaries
+
+Pre-built binaries are committed in `dist/` and shipped with the action (composite action).
+Rebuild with `docker buildx bake dist`. CI checks that `dist/` is up to date.
+
 ## Architecture
 
 `main.go` orchestrates a pipeline: fetch PR files → parse diffs → compare refs → verify tag/SHA → render markdown → post comment.
@@ -22,6 +27,7 @@ pkg/compare/             Fetches commit comparisons concurrently (sync.WaitGroup
 pkg/pinverify/           Verifies SHA pins match their inline tag comments.
 pkg/render/              Renders Markdown comment. Marker: <!-- gha-pin-diff -->
 pkg/comment/             Upserts/deletes the bot comment on a PR.
+dist/                    Pre-built binaries (linux/darwin/windows × amd64/arm64).
 ```
 
 ## Key types
