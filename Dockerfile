@@ -8,9 +8,9 @@ RUN --mount=type=cache,target=/root/.npm \
     --mount=type=bind,source=package-lock.json,destination=package-lock.json \
     npm ci
 
-RUN --mount=type=cache,target=/root/.npm \
-    --mount=type=bind,source=. \
-    npm run build && \
+COPY . .
+
+RUN npm run build && \
     npm test
 
 # dist
