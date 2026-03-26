@@ -1,14 +1,5 @@
 import { isSHA } from "../diffparser/parser.js";
-function actionOwnerRepo(action) {
-    const idx = action.indexOf("/");
-    if (idx < 0)
-        return null;
-    const owner = action.substring(0, idx);
-    const rest = action.substring(idx + 1);
-    const slashIdx = rest.indexOf("/");
-    const repo = slashIdx >= 0 ? rest.substring(0, slashIdx) : rest;
-    return [owner, repo];
-}
+import { actionOwnerRepo } from "../compare/compare.js";
 /**
  * Verifies that new SHA pins match their inline tag comments.
  * Only checks updates where newRef is a SHA and newTag is present.

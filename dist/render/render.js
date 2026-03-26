@@ -1,3 +1,4 @@
+import { actionOwnerRepo } from "../compare/compare.js";
 /** HTML comment used to identify bot comments. */
 export const MARKER = "<!-- gha-pin-diff -->";
 /** Maximum number of commits displayed per action. */
@@ -57,6 +58,10 @@ function dedup(results) {
 function isPinOnly(r) {
     return r.err === null && r.totalCommits === 0;
 }
+function ownerRepoStr(action) {
+    const parsed = actionOwnerRepo(action);
+    return parsed ? parsed.join("/") : action;
+}
 function renderPinOnly(results) {
     let b = "\n### 📌 Pinned (digest unchanged)\n";
     b += "\n| Action | Version | Digest |\n";
@@ -66,7 +71,7 @@ function renderPinOnly(results) {
         let tag = u.newTag || u.oldTag;
         if (!tag)
             tag = shortRef(u.newRef);
-        const commitURL = `https://github.com/${actionOwnerRepo(u.action)}/commit/${u.newRef}`;
+        const commitURL = `https://github.com/${ownerRepoStr(u.action)}/commit/${u.newRef}`;
         b += `| [\`${u.action}\`](${actionRepoURL(u.action)}) | \`${tag}\` | [\`${shortRef(u.newRef)}\`](${commitURL}) |\n`;
     }
     return b;
@@ -78,10 +83,10 @@ function renderMismatches(mismatches) {
     b += "|--------|-----|-------------|------------|\n";
     for (const m of mismatches) {
         const u = m.update;
-        const ownerRepo = actionOwnerRepo(u.action);
-        const tagURL = `https://github.com/${ownerRepo}/releases/tag/${m.tag}`;
-        const expectURL = `https://github.com/${ownerRepo}/commit/${m.expectSHA}`;
-        const pinnedURL = `https://github.com/${ownerRepo}/commit/${u.newRef}`;
+        const or = ownerRepoStr(u.action);
+        const tagURL = `https://github.com/${or}/releases/tag/${m.tag}`;
+        const expectURL = `https://github.com/${or}/commit/${m.expectSHA}`;
+        const pinnedURL = `https://github.com/${or}/commit/${u.newRef}`;
         b += `| [\`${u.action}\`](${actionRepoURL(u.action)}) | [\`${m.tag}\`](${tagURL}) | [\`${shortRef(m.expectSHA)}\`](${expectURL}) | [\`${shortRef(u.newRef)}\`](${pinnedURL}) |\n`;
     }
     return b;
@@ -98,7 +103,7 @@ function renderResult(r) {
     b += "\n";
     if (r.err) {
         b += `\n⚠️ Could not fetch comparison: ${r.err.message}\n`;
-        b += `\n[View diff manually](https://github.com/${actionOwnerRepo(u.action)}/compare/${u.oldRef}...${u.newRef})\n`;
+        b += `\n[View diff manually](https://github.com/${ownerRepoStr(u.action)}/compare/${u.oldRef}...${u.newRef})\n`;
         return b;
     }
     const commitWord = r.totalCommits === 1 ? "commit" : "commits";
@@ -109,7 +114,7 @@ function renderResult(r) {
     b += "\n";
     if (r.commits.length === 0)
         return b;
-    const ownerRepo = actionOwnerRepo(u.action);
+    const or = ownerRepoStr(u.action);
     b += "\n| SHA | Message | Date |\n";
     b += "|-----|---------|------|\n";
     let shown = r.commits;
@@ -118,7 +123,7 @@ function renderResult(r) {
     }
     for (const c of shown) {
         const sha = shortRef(c.sha);
-        const commitURL = `https://github.com/${ownerRepo}/commit/${c.sha}`;
+        const commitURL = `https://github.com/${or}/commit/${c.sha}`;
         const date = c.date ? formatDate(c.date) : "";
         let msg = escapeMarkdown(c.message);
         if (msg.length > 80) {
@@ -132,17 +137,7 @@ function renderResult(r) {
     return b;
 }
 function actionRepoURL(action) {
-    return "https://github.com/" + actionOwnerRepo(action);
-}
-function actionOwnerRepo(action) {
-    const idx = action.indexOf("/");
-    if (idx < 0)
-        return action;
-    const owner = action.substring(0, idx);
-    const rest = action.substring(idx + 1);
-    const slashIdx = rest.indexOf("/");
-    const repo = slashIdx >= 0 ? rest.substring(0, slashIdx) : rest;
-    return owner + "/" + repo;
+    return "https://github.com/" + ownerRepoStr(action);
 }
 function escapeMarkdown(s) {
     return s.replaceAll("|", "\\|").replaceAll("\n", " ");
