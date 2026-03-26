@@ -8,10 +8,11 @@ import (
 
 	"github.com/vvoland/gha-pin-diff/pkg/compare"
 	"github.com/vvoland/gha-pin-diff/pkg/diffparser"
+	"github.com/vvoland/gha-pin-diff/pkg/pinverify"
 )
 
 func TestCommentEmpty(t *testing.T) {
-	got := Comment(nil)
+	got := Comment(nil, nil)
 	if got != "" {
 		t.Errorf("expected empty string for nil results, got %q", got)
 	}
@@ -41,7 +42,7 @@ func TestCommentMarker(t *testing.T) {
 		},
 	}
 
-	got := Comment(results)
+	got := Comment(results, nil)
 
 	if !strings.HasPrefix(got, Marker) {
 		t.Error("comment should start with marker")
@@ -73,7 +74,7 @@ func TestCommentError(t *testing.T) {
 		},
 	}
 
-	got := Comment(results)
+	got := Comment(results, nil)
 	if !strings.Contains(got, "⚠️ Could not fetch comparison") {
 		t.Error("missing error message")
 	}
@@ -109,7 +110,7 @@ func TestCommentTruncation(t *testing.T) {
 		},
 	}
 
-	got := Comment(results)
+	got := Comment(results, nil)
 
 	if !strings.Contains(got, fmt.Sprintf("Showing %d of 20 commits", MaxCommitsShown)) {
 		t.Errorf("missing truncation notice, got:\n%s", got)
@@ -149,7 +150,7 @@ func TestCommentSortOrder(t *testing.T) {
 		},
 	}
 
-	got := Comment(results)
+	got := Comment(results, nil)
 	idxFirst := strings.Index(got, "aaa/first")
 	idxLast := strings.Index(got, "zzz/last")
 	if idxFirst > idxLast {
@@ -178,7 +179,7 @@ func TestCommentDedup(t *testing.T) {
 		results = append(results, r)
 	}
 
-	got := Comment(results)
+	got := Comment(results, nil)
 
 	// Should appear once in pin-only table, not as repeated full sections.
 	count := strings.Count(got, "[`actions/checkout`]")
@@ -216,7 +217,7 @@ func TestCommentDedupDifferentRefs(t *testing.T) {
 		},
 	}
 
-	got := Comment(results)
+	got := Comment(results, nil)
 
 	// The v5→v6 change should render as a full section.
 	if !strings.Contains(got, "`v5` → `v6`") {
@@ -268,7 +269,7 @@ func TestCommentPinOnly(t *testing.T) {
 		},
 	}
 
-	got := Comment(results)
+	got := Comment(results, nil)
 	t.Logf("Rendered:\n%s", got)
 
 	if !strings.Contains(got, "📌 Pinned (digest unchanged)") {
@@ -330,7 +331,7 @@ func TestCommentPinOnlyAllSameAction(t *testing.T) {
 		})
 	}
 
-	got := Comment(results)
+	got := Comment(results, nil)
 	t.Logf("Rendered:\n%s", got)
 
 	// Should be a single compact table with 2 rows, not 9 sections.
@@ -342,5 +343,98 @@ func TestCommentPinOnlyAllSameAction(t *testing.T) {
 	}
 	if strings.Contains(got, "**0 commits**") {
 		t.Errorf("should not contain commit counts\n%s", got)
+	}
+}
+
+func TestCommentMismatch(t *testing.T) {
+	sha40a := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	sha40b := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+	mismatches := []pinverify.Mismatch{
+		{
+			Update: diffparser.ActionUpdate{
+				Action: "actions/checkout",
+				OldRef: "v6",
+				NewRef: sha40a,
+				OldTag: "v6",
+				NewTag: "v6.2.0",
+				File:   ".github/workflows/ci.yml",
+			},
+			Tag:       "v6.2.0",
+			ExpectSHA: sha40b,
+		},
+	}
+
+	got := Comment(nil, mismatches)
+
+	if !strings.HasPrefix(got, Marker) {
+		t.Error("comment should start with marker")
+	}
+	if !strings.Contains(got, "⚠️ Tag / SHA Mismatch") {
+		t.Error("missing mismatch header")
+	}
+	if !strings.Contains(got, "`v6.2.0`") {
+		t.Errorf("missing tag in output:\n%s", got)
+	}
+	if !strings.Contains(got, "[`aaaaaaa`]") {
+		t.Errorf("missing pinned SHA:\n%s", got)
+	}
+	if !strings.Contains(got, "[`bbbbbbb`]") {
+		t.Errorf("missing expected SHA:\n%s", got)
+	}
+	if !strings.Contains(got, "does not match the tag") {
+		t.Errorf("missing explanation text:\n%s", got)
+	}
+}
+
+func TestCommentMismatchWithResults(t *testing.T) {
+	sha40a := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	sha40b := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	sha40c := "cccccccccccccccccccccccccccccccccccccccc"
+
+	results := []compare.Result{
+		{
+			Update: diffparser.ActionUpdate{
+				Action: "actions/setup-go",
+				OldRef: sha40b,
+				NewRef: sha40c,
+				OldTag: "v5.0.0",
+				NewTag: "v5.1.0",
+				File:   ".github/workflows/ci.yml",
+			},
+			TotalCommits: 1,
+			Commits: []compare.CommitInfo{
+				{
+					SHA:     sha40c,
+					Message: "bump",
+					Author:  "dev",
+					Date:    time.Date(2024, 4, 15, 0, 0, 0, 0, time.UTC),
+				},
+			},
+		},
+	}
+
+	mismatches := []pinverify.Mismatch{
+		{
+			Update: diffparser.ActionUpdate{
+				Action: "actions/checkout",
+				NewRef: sha40a,
+				NewTag: "v6.2.0",
+			},
+			Tag:       "v6.2.0",
+			ExpectSHA: sha40b,
+		},
+	}
+
+	got := Comment(results, mismatches)
+
+	// Mismatch section should appear before the commit diff sections.
+	mismatchIdx := strings.Index(got, "⚠️ Tag / SHA Mismatch")
+	setupGoIdx := strings.Index(got, "actions/setup-go")
+	if mismatchIdx < 0 || setupGoIdx < 0 {
+		t.Fatalf("missing sections in output:\n%s", got)
+	}
+	if mismatchIdx > setupGoIdx {
+		t.Error("mismatch section should appear before regular results")
 	}
 }

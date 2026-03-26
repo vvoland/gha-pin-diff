@@ -25,6 +25,18 @@ When Dependabot or a human updates actions in `.github/workflows/`, the diff is 
 > | `abcdef1` | chore: bump buildx to 0.20 | @crazy-max | 2025-03-19 |
 > | `1234567` | feat: add support for new driver options | @tonistiigi | 2025-03-18 |
 
+### Tag / SHA Mismatch Warning
+
+When the pinned SHA doesn't match the tag in the inline comment, a warning is shown:
+
+> ### ⚠️ Tag / SHA Mismatch
+>
+> The following pins reference a SHA that does not match the tag in the comment:
+>
+> | Action | Tag | Expected SHA | Pinned SHA |
+> |--------|-----|-------------|------------|
+> | `actions/checkout` | `v6.2.0` | `bbbbbbb` | `aaaaaaa` |
+
 ## Usage
 
 ```yaml
@@ -65,6 +77,7 @@ jobs:
 - **SHA → SHA**: `@old-sha` → `@new-sha # v4.1.4` (Dependabot digest bumps)
 - **Tag → SHA**: `@v3` → `@sha # v4.0.0` (initial pinning + upgrade)
 - **Tag → Tag**: `@v4.1.1` → `@v4.1.4` (simple version bumps)
+- **Tag / SHA mismatch**: `@sha # v6.2.0` where the SHA doesn't match what `v6.2.0` resolves to
 - **Step actions**: `uses: owner/repo@ref`
 - **Reusable workflows**: `uses: owner/repo/.github/workflows/file.yml@ref`
 - Inline tag comments (`# v1.2.3`) are used for display when present
@@ -74,6 +87,7 @@ jobs:
 | Scenario | Action |
 |----------|--------|
 | Version changes found | Post or update comment with diff summary |
+| Tag/SHA mismatch detected | Show warning table at top of comment |
 | No changes | Delete existing bot comment, if any |
 | Compare API fails (deleted repo, etc.) | Show warning with manual compare link |
 | >15 commits per action | Show last 15, link to full comparison |
@@ -88,6 +102,7 @@ PR event
   → filter .github/workflows/**
   → parse unified diff for `uses:` line changes
   → compare old...new refs (GitHub compare API, concurrently)
+  → verify tag/SHA consistency (resolve tags concurrently)
   → render Markdown comment
   → create/update/delete bot comment (identified by <!-- gha-pin-diff --> marker)
 ```

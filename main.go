@@ -13,6 +13,7 @@ import (
 	"github.com/vvoland/gha-pin-diff/pkg/compare"
 	"github.com/vvoland/gha-pin-diff/pkg/diffparser"
 	"github.com/vvoland/gha-pin-diff/pkg/github"
+	"github.com/vvoland/gha-pin-diff/pkg/pinverify"
 	"github.com/vvoland/gha-pin-diff/pkg/render"
 	"strconv"
 )
@@ -82,10 +83,16 @@ func run() error {
 	// 4. Fetch comparisons.
 	results := compare.Fetch(ctx, client, updates)
 
-	// 5. Render comment.
-	body := render.Comment(results)
+	// 5. Verify tag/SHA consistency.
+	mismatches := pinverify.Check(ctx, client, updates)
+	for _, m := range mismatches {
+		log.Printf("warning: %s", pinverify.FormatMismatch(m))
+	}
 
-	// 6. Create or update PR comment.
+	// 6. Render comment.
+	body := render.Comment(results, mismatches)
+
+	// 7. Create or update PR comment.
 	return comment.Ensure(ctx, client, owner, repoName, pr, body)
 }
 

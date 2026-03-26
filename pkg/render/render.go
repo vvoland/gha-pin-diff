@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/vvoland/gha-pin-diff/pkg/compare"
+	"github.com/vvoland/gha-pin-diff/pkg/pinverify"
 )
 
 // Marker is the HTML comment used to identify bot comments.
@@ -17,9 +18,9 @@ const Marker = "<!-- gha-pin-diff -->"
 const MaxCommitsShown = 15
 
 // Comment renders the full Markdown comment body for the given comparison results.
-// Returns empty string if there are no results.
-func Comment(results []compare.Result) string {
-	if len(results) == 0 {
+// Returns empty string if there are no results and no mismatches.
+func Comment(results []compare.Result, mismatches []pinverify.Mismatch) string {
+	if len(results) == 0 && len(mismatches) == 0 {
 		return ""
 	}
 
@@ -37,6 +38,10 @@ func Comment(results []compare.Result) string {
 	var b strings.Builder
 	b.WriteString(Marker)
 	b.WriteString("\n## 🔄 Action Pin Diff\n")
+
+	if len(mismatches) > 0 {
+		renderMismatches(&b, mismatches)
+	}
 
 	for _, r := range changed {
 		b.WriteByte('\n')
@@ -92,6 +97,24 @@ func renderPinOnly(b *strings.Builder, results []compare.Result) {
 		}
 		commitURL := fmt.Sprintf("https://github.com/%s/commit/%s", actionOwnerRepo(u.Action), u.NewRef)
 		fmt.Fprintf(b, "| [`%s`](%s) | `%s` | [`%s`](%s) |\n", u.Action, actionRepoURL(u.Action), tag, shortRef(u.NewRef), commitURL)
+	}
+}
+
+func renderMismatches(b *strings.Builder, mismatches []pinverify.Mismatch) {
+	b.WriteString("\n### ⚠️ Tag / SHA Mismatch\n")
+	b.WriteString("\nThe following pins reference a SHA that does not match the tag in the comment:\n")
+	b.WriteString("\n| Action | Tag | Expected SHA | Pinned SHA |\n")
+	b.WriteString("|--------|-----|-------------|------------|\n")
+	for _, m := range mismatches {
+		u := m.Update
+		tagURL := fmt.Sprintf("https://github.com/%s/releases/tag/%s", actionOwnerRepo(u.Action), m.Tag)
+		expectURL := fmt.Sprintf("https://github.com/%s/commit/%s", actionOwnerRepo(u.Action), m.ExpectSHA)
+		pinnedURL := fmt.Sprintf("https://github.com/%s/commit/%s", actionOwnerRepo(u.Action), u.NewRef)
+		fmt.Fprintf(b, "| [`%s`](%s) | [`%s`](%s) | [`%s`](%s) | [`%s`](%s) |\n",
+			u.Action, actionRepoURL(u.Action),
+			m.Tag, tagURL,
+			shortRef(m.ExpectSHA), expectURL,
+			shortRef(u.NewRef), pinnedURL)
 	}
 }
 
