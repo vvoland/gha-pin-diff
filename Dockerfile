@@ -4,12 +4,8 @@ FROM node:20-alpine AS build
 WORKDIR /src
 
 RUN --mount=type=cache,target=/root/.npm \
-    --mount=type=bind,source=package.json,destination=package.json \
-    --mount=type=bind,source=package-lock.json,destination=package-lock.json \
-    npm ci
-
-RUN --mount=type=cache,target=/root/.npm \
     --mount=type=bind,source=.,rw \
+    npm ci && \
     npm run build -- --outDir /out && \
     node --test /out/**/*.test.js
 
