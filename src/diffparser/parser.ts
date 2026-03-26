@@ -8,22 +8,16 @@ export interface ActionUpdate {
   file: string; // workflow file path
 }
 
-/**
- * Matches a `uses:` line with owner/repo (optionally /path) @ any ref,
- * and an optional inline tag comment like `# v4.1.1`.
- *
- * Capture groups:
- *  1. action target (owner/repo or owner/repo/path)
- *  2. ref (SHA, tag, or branch)
- *  3. tag comment (optional, without the leading "# ")
- */
-const usesRe =
-  /uses:\s+([a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+(?:\/[^\s@]+)?)@(\S+?)(?:\s+#\s*(\S+))?\s*$/;
-
 /** Reports whether s is a 40-character hexadecimal string. */
 export function isSHA(s: string): boolean {
   if (s.length !== 40) return false;
-  return /^[0-9a-f]{40}$/.test(s);
+  for (let i = 0; i < 40; i++) {
+    const c = s.charCodeAt(i);
+    // 0-9: 48-57, a-f: 97-102
+    if ((c >= 48 && c <= 57) || (c >= 97 && c <= 102)) continue;
+    return false;
+  }
+  return true;
 }
 
 interface Ref {
@@ -50,6 +44,55 @@ export function parse(patches: Record<string, string>): ActionUpdate[] {
   return updates;
 }
 
+/**
+ * Parses a `uses:` line and returns [action, ref, tag] or null.
+ *
+ * Expects the content after the diff prefix (- or +), e.g.:
+ *   "      - uses: actions/checkout@abc123 # v4.1.1"
+ *
+ * Action target is owner/repo or owner/repo/path.
+ * Ref is everything between @ and whitespace.
+ * Tag is the first non-whitespace token after "# " (optional).
+ */
+function parseUses(s: string): [string, string, string] | null {
+  const idx = s.indexOf("uses:");
+  if (idx < 0) return null;
+
+  // Skip "uses:" and whitespace.
+  let i = idx + 5;
+  while (i < s.length && s[i] === " ") i++;
+  if (i >= s.length) return null;
+
+  // Read action target (up to @).
+  const atIdx = s.indexOf("@", i);
+  if (atIdx < 0) return null;
+  const action = s.substring(i, atIdx);
+
+  // Action must contain at least one slash (owner/repo).
+  if (action.indexOf("/") < 0) return null;
+
+  // Read ref (non-whitespace after @).
+  let j = atIdx + 1;
+  while (j < s.length && s[j] !== " " && s[j] !== "\t") j++;
+  if (j === atIdx + 1) return null;
+  const ref = s.substring(atIdx + 1, j);
+
+  // Look for optional tag comment: skip whitespace, expect "# ", then read token.
+  let tag = "";
+  while (j < s.length && (s[j] === " " || s[j] === "\t")) j++;
+  if (j < s.length && s[j] === "#") {
+    j++;
+    while (j < s.length && (s[j] === " " || s[j] === "\t")) j++;
+    const tagStart = j;
+    while (j < s.length && s[j] !== " " && s[j] !== "\t") j++;
+    if (j > tagStart) {
+      tag = s.substring(tagStart, j);
+    }
+  }
+
+  return [action, ref, tag];
+}
+
 function parsePatch(file: string, patch: string): ActionUpdate[] {
   const removed = new Map<string, Ref[]>();
   const added = new Map<string, Ref[]>();
@@ -60,11 +103,11 @@ function parsePatch(file: string, patch: string): ActionUpdate[] {
     const prefix = line[0];
     if (prefix !== "-" && prefix !== "+") continue;
 
-    const m = usesRe.exec(line.substring(1));
-    if (!m) continue;
+    const parsed = parseUses(line.substring(1));
+    if (!parsed) continue;
 
-    const action = m[1];
-    const r: Ref = { raw: m[2], tag: m[3] || "" };
+    const [action, raw, tag] = parsed;
+    const r: Ref = { raw, tag };
     const target = prefix === "-" ? removed : added;
     const existing = target.get(action) || [];
     existing.push(r);
