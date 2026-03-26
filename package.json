@@ -7,14 +7,12 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "node --test dist/**/*.test.js",
     "lint": "tsc --noEmit",
     "start": "node dist/main.js"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
-    "vitest": "^3.0.0",
     "@types/node": "^22.0.0"
   }
 }

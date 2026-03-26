@@ -1,12 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { comment, MARKER, MAX_COMMITS_SHOWN } from "./render.js";
 import type { Result, CommitInfo } from "../compare/compare.js";
-import type { ActionUpdate } from "../diffparser/parser.js";
 import type { Mismatch } from "../pinverify/verify.js";
 
 describe("comment", () => {
   it("returns empty for nil results", () => {
-    expect(comment([], [])).toBe("");
+    assert.equal(comment([], []), "");
   });
 
   it("includes marker and content", () => {
@@ -36,12 +36,14 @@ describe("comment", () => {
 
     const got = comment(results, []);
 
-    expect(got.startsWith(MARKER)).toBe(true);
-    expect(got).toContain("## 🔄 Action Pin Diff");
-    expect(got).toContain("`v4.0.0` → `v4.1.0`");
-    expect(got).toContain("**1 commit**");
-    expect(got).toContain(
-      "| [`abc1234`](https://github.com/actions/checkout/commit/abc1234567890abc1234567890abc1234567890ab) | Fix something | 2024-04-15 |"
+    assert.ok(got.startsWith(MARKER));
+    assert.ok(got.includes("## 🔄 Action Pin Diff"));
+    assert.ok(got.includes("`v4.0.0` → `v4.1.0`"));
+    assert.ok(got.includes("**1 commit**"));
+    assert.ok(
+      got.includes(
+        "| [`abc1234`](https://github.com/actions/checkout/commit/abc1234567890abc1234567890abc1234567890ab) | Fix something | 2024-04-15 |"
+      )
     );
   });
 
@@ -64,8 +66,8 @@ describe("comment", () => {
     ];
 
     const got = comment(results, []);
-    expect(got).toContain("⚠️ Could not fetch comparison");
-    expect(got).toContain("View diff manually");
+    assert.ok(got.includes("⚠️ Could not fetch comparison"));
+    assert.ok(got.includes("View diff manually"));
   });
 
   it("truncates long commit lists", () => {
@@ -94,10 +96,10 @@ describe("comment", () => {
     ];
 
     const got = comment(results, []);
-    expect(got).toContain(`Showing ${MAX_COMMITS_SHOWN} of 20 commits`);
+    assert.ok(got.includes(`Showing ${MAX_COMMITS_SHOWN} of 20 commits`));
 
     const rows = got.split("\n").filter((l) => l.startsWith("| [`")).length;
-    expect(rows).toBe(MAX_COMMITS_SHOWN);
+    assert.equal(rows, MAX_COMMITS_SHOWN);
   });
 
   it("sorts by action name", () => {
@@ -135,7 +137,7 @@ describe("comment", () => {
     const got = comment(results, []);
     const idxFirst = got.indexOf("aaa/first");
     const idxLast = got.indexOf("zzz/last");
-    expect(idxFirst).toBeLessThan(idxLast);
+    assert.ok(idxFirst < idxLast, "results should be sorted by action name");
   });
 
   it("deduplicates results", () => {
@@ -168,8 +170,8 @@ describe("comment", () => {
 
     const got = comment(results, []);
     const count = got.split("[`actions/checkout`]").length - 1;
-    expect(count).toBe(1);
-    expect(got).toContain("📌 Pinned");
+    assert.equal(count, 1);
+    assert.ok(got.includes("📌 Pinned"));
   });
 
   it("handles different refs for same action", () => {
@@ -205,8 +207,8 @@ describe("comment", () => {
     ];
 
     const got = comment(results, []);
-    expect(got).toContain("`v5` → `v6`");
-    expect(got).toContain("📌 Pinned");
+    assert.ok(got.includes("`v5` → `v6`"));
+    assert.ok(got.includes("📌 Pinned"));
   });
 
   it("renders pin-only results", () => {
@@ -259,7 +261,7 @@ describe("comment", () => {
     ];
 
     const got = comment(results, []);
-    expect(got).toContain("📌 Pinned (digest unchanged)");
+    assert.ok(got.includes("📌 Pinned (digest unchanged)"));
 
     for (const action of [
       "actions/checkout",
@@ -267,19 +269,25 @@ describe("comment", () => {
       "actions/upload-artifact",
     ]) {
       const count = got.split(`[\`${action}\`]`).length - 1;
-      expect(count).toBe(1);
+      assert.equal(count, 1, `${action} should appear once`);
     }
 
-    expect(got).toContain(
-      "[`de0fac2`](https://github.com/actions/checkout/commit/de0fac2e4500dabe0009e67214ff5f5447ce83dd)"
+    assert.ok(
+      got.includes(
+        "[`de0fac2`](https://github.com/actions/checkout/commit/de0fac2e4500dabe0009e67214ff5f5447ce83dd)"
+      )
     );
-    expect(got).toContain(
-      "[`4b73464`](https://github.com/actions/setup-go/commit/4b73464bb391d4059bd26b0524d20df3927bd417)"
+    assert.ok(
+      got.includes(
+        "[`4b73464`](https://github.com/actions/setup-go/commit/4b73464bb391d4059bd26b0524d20df3927bd417)"
+      )
     );
-    expect(got).toContain(
-      "[`bbbca2d`](https://github.com/actions/upload-artifact/commit/bbbca2ddaa5d8feaa63e36b76fdaad77386f024f)"
+    assert.ok(
+      got.includes(
+        "[`bbbca2d`](https://github.com/actions/upload-artifact/commit/bbbca2ddaa5d8feaa63e36b76fdaad77386f024f)"
+      )
     );
-    expect(got).not.toContain("**0 commits**");
+    assert.ok(!got.includes("**0 commits**"));
   });
 
   it("renders pin-only all same action", () => {
@@ -318,9 +326,9 @@ describe("comment", () => {
     }
 
     const got = comment(results, []);
-    expect(got.split("[`actions/checkout`]").length - 1).toBe(1);
-    expect(got.split("[`actions/setup-go`]").length - 1).toBe(1);
-    expect(got).not.toContain("**0 commits**");
+    assert.equal(got.split("[`actions/checkout`]").length - 1, 1);
+    assert.equal(got.split("[`actions/setup-go`]").length - 1, 1);
+    assert.ok(!got.includes("**0 commits**"));
   });
 
   it("renders mismatches", () => {
@@ -343,12 +351,12 @@ describe("comment", () => {
     ];
 
     const got = comment([], mismatches);
-    expect(got.startsWith(MARKER)).toBe(true);
-    expect(got).toContain("⚠️ Tag / SHA Mismatch");
-    expect(got).toContain("`v6.2.0`");
-    expect(got).toContain("[`aaaaaaa`]");
-    expect(got).toContain("[`bbbbbbb`]");
-    expect(got).toContain("does not match the tag");
+    assert.ok(got.startsWith(MARKER));
+    assert.ok(got.includes("⚠️ Tag / SHA Mismatch"));
+    assert.ok(got.includes("`v6.2.0`"));
+    assert.ok(got.includes("[`aaaaaaa`]"));
+    assert.ok(got.includes("[`bbbbbbb`]"));
+    assert.ok(got.includes("does not match the tag"));
   });
 
   it("renders mismatches before results", () => {
@@ -398,8 +406,8 @@ describe("comment", () => {
     const got = comment(results, mismatches);
     const mismatchIdx = got.indexOf("⚠️ Tag / SHA Mismatch");
     const setupGoIdx = got.indexOf("actions/setup-go");
-    expect(mismatchIdx).toBeGreaterThanOrEqual(0);
-    expect(setupGoIdx).toBeGreaterThanOrEqual(0);
-    expect(mismatchIdx).toBeLessThan(setupGoIdx);
+    assert.ok(mismatchIdx >= 0);
+    assert.ok(setupGoIdx >= 0);
+    assert.ok(mismatchIdx < setupGoIdx, "mismatch section should appear before regular results");
   });
 });

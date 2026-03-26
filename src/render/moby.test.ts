@@ -1,11 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { comment, MARKER } from "./render.js";
 import type { Result } from "../compare/compare.js";
 
-/**
- * Simulates the full output for moby/moby#52217.
- * The PR pins docker/setup-buildx-action from @v3 to @sha # v4.0.0.
- */
 describe("moby PR 52217 render", () => {
   it("renders the full comment", () => {
     const sha = "4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd";
@@ -75,7 +72,7 @@ describe("moby PR 52217 render", () => {
     ];
 
     for (const c of checks) {
-      expect(got, `missing ${c.desc}`).toContain(c.want);
+      assert.ok(got.includes(c.want), `missing ${c.desc}: ${c.want}`);
     }
   });
 });

@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { check } from "./verify.js";
 import { Client } from "../github/client.js";
@@ -51,7 +52,7 @@ describe("check", () => {
       ];
 
       const mismatches = await check(client, updates);
-      expect(mismatches).toHaveLength(0);
+      assert.equal(mismatches.length, 0);
     } finally {
       close();
     }
@@ -84,10 +85,10 @@ describe("check", () => {
       ];
 
       const mismatches = await check(client, updates);
-      expect(mismatches).toHaveLength(1);
-      expect(mismatches[0].tag).toBe("v6.2.0");
-      expect(mismatches[0].expectSHA).toBe(sha40b);
-      expect(mismatches[0].update.newRef).toBe(sha40a);
+      assert.equal(mismatches.length, 1);
+      assert.equal(mismatches[0].tag, "v6.2.0");
+      assert.equal(mismatches[0].expectSHA, sha40b);
+      assert.equal(mismatches[0].update.newRef, sha40a);
     } finally {
       close();
     }
@@ -115,7 +116,7 @@ describe("check", () => {
       ];
 
       const mismatches = await check(client, updates);
-      expect(mismatches).toHaveLength(0);
+      assert.equal(mismatches.length, 0);
     } finally {
       close();
     }
@@ -143,7 +144,7 @@ describe("check", () => {
       ];
 
       const mismatches = await check(client, updates);
-      expect(mismatches).toHaveLength(0);
+      assert.equal(mismatches.length, 0);
     } finally {
       close();
     }
@@ -173,8 +174,8 @@ describe("check", () => {
       ];
 
       const mismatches = await check(client, updates);
-      expect(mismatches).toHaveLength(0);
-      expect(calls).toBe(1);
+      assert.equal(mismatches.length, 0);
+      assert.equal(calls, 1);
     } finally {
       close();
     }
@@ -206,8 +207,8 @@ describe("check", () => {
       ];
 
       const mismatches = await check(client, updates);
-      expect(mismatches).toHaveLength(1);
-      expect(mismatches[0].update.action).toBe("actions/setup-go");
+      assert.equal(mismatches.length, 1);
+      assert.equal(mismatches[0].update.action, "actions/setup-go");
     } finally {
       close();
     }
@@ -228,7 +229,7 @@ describe("check", () => {
       ];
 
       const mismatches = await check(client, updates);
-      expect(mismatches).toHaveLength(0);
+      assert.equal(mismatches.length, 0);
     } finally {
       close();
     }
