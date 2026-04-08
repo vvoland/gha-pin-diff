@@ -5,11 +5,15 @@
   "private": true,
   "type": "module",
   "main": "dist/main.js",
+  "bin": {
+    "gha-pin-diff": "./gha-pin-diff"
+  },
   "scripts": {
     "build": "tsc",
     "test": "node --test dist/**/*.test.js",
     "lint": "tsc --noEmit",
-    "start": "node dist/main.js"
+    "start": "node dist/main.js",
+    "local": "node dist/local.js"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

@@ -81,6 +81,38 @@ jobs:
 | `contents` | `read` | Read PR file diffs |
 | `pull-requests` | `write` | Post/update PR comments |
 
+## Local Verification
+
+You can also run pin verification locally against your `.github/workflows/` directory without a PR:
+
+```bash
+npm run local
+```
+
+Or specify a different project root:
+
+```bash
+npm run local -- /path/to/project
+```
+
+Set `GITHUB_TOKEN` to avoid API rate limits:
+
+```bash
+GITHUB_TOKEN=ghp_... npm run local
+```
+
+Example output when a mismatch is found:
+
+```
+found 8 SHA-pinned action(s) with tag comments
+
+❌ 1 mismatch(es) found:
+
+  .github/workflows/ci.yml:13: actions/checkout pinned to de0fac2 but v6.0.1 resolves to 8e8c483
+```
+
+The exit code is non-zero when mismatches are found, making it suitable for CI or pre-commit hooks.
+
 ## What It Detects
 
 - **SHA → SHA**: `@old-sha` → `@new-sha # v4.1.4` (digest bumps)
