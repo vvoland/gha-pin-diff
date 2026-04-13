@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { fetch as compareFetch, actionOwnerRepo } from "./compare.js";
+import { fetch as compareFetch, actionOwnerRepo, updateOwnerRepo } from "./compare.js";
 import { Client, APIError } from "../github/client.js";
 function startServer(handler) {
     return new Promise((resolve) => {
@@ -112,6 +112,12 @@ describe("actionOwnerRepo", () => {
     });
     it("returns null for invalid input", () => {
         assert.equal(actionOwnerRepo("invalid"), null);
+    });
+    it("prefers explicit repo metadata", () => {
+        assert.deepEqual(updateOwnerRepo({
+            action: "fzf-lua",
+            repo: "ibhagwan/fzf-lua",
+        }), ["ibhagwan", "fzf-lua"]);
     });
 });
 //# sourceMappingURL=compare.test.js.map

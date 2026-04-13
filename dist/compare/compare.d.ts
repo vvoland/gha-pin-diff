@@ -23,3 +23,4 @@ export declare function fetch(client: Client, updates: ActionUpdate[]): Promise<
  * "org/repo/.github/workflows/x.yml" -> ["org", "repo"]
  */
 export declare function actionOwnerRepo(action: string): [string, string] | null;
+export declare function updateOwnerRepo(update: Pick<ActionUpdate, "action" | "repo">): [string, string] | null;

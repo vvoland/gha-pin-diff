@@ -5,7 +5,7 @@ import { parse, type ActionUpdate } from "./parser.js";
 const sha40a = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const sha40b = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 const sha40c = "cccccccccccccccccccccccccccccccccccccccc";
-const sha40d = "dddddddddddddddddddddddddddddddddddddd";
+const sha40d = "dddddddddddddddddddddddddddddddddddddddd";
 
 function updatesEqual(a: ActionUpdate[], b: ActionUpdate[]): boolean {
   if (a.length === 0 && b.length === 0) return true;
@@ -228,6 +228,49 @@ describe("parse", () => {
           file: ".github/workflows/release.yml",
         },
       ],
+    },
+    {
+      name: "lazy-lock commit updates",
+      patches: {
+        "neovim/lazy-lock.json":
+          "@@ -1,6 +1,6 @@\n" +
+          ' {\n' +
+          `-  "codecompanion.nvim": { "branch": "main", "commit": "${sha40a}" },\n` +
+          `+  "codecompanion.nvim": { "branch": "main", "commit": "${sha40b}" },\n` +
+          `-  "fzf-lua": { "branch": "main", "commit": "${sha40c}" },\n` +
+          `+  "fzf-lua": { "branch": "main", "commit": "${sha40d}" },\n` +
+          " }",
+      },
+      want: [
+        {
+          action: "codecompanion.nvim",
+          oldRef: sha40a,
+          newRef: sha40b,
+          oldTag: "",
+          newTag: "",
+          file: "neovim/lazy-lock.json",
+        },
+        {
+          action: "fzf-lua",
+          oldRef: sha40c,
+          newRef: sha40d,
+          oldTag: "",
+          newTag: "",
+          file: "neovim/lazy-lock.json",
+        },
+      ],
+    },
+    {
+      name: "lazy-lock additions and removals without pair are skipped",
+      patches: {
+        "lazy-lock.json":
+          "@@ -1,4 +1,4 @@\n" +
+          ' {\n' +
+          `-  "mini.diff": { "branch": "main", "commit": "${sha40a}" },\n` +
+          `+  "plenary.nvim": { "branch": "master", "commit": "${sha40b}" },\n` +
+          " }",
+      },
+      want: [],
     },
   ];
 

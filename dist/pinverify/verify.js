@@ -1,5 +1,5 @@
 import { isSHA } from "../diffparser/parser.js";
-import { actionOwnerRepo } from "../compare/compare.js";
+import { updateOwnerRepo } from "../compare/compare.js";
 /**
  * Verifies that new SHA pins match their inline tag comments.
  * Only checks updates where newRef is a SHA and newTag is present.
@@ -26,7 +26,7 @@ export async function check(client, updates) {
             continue;
         seen.add(k);
         promises.push((async () => {
-            const parsed = actionOwnerRepo(j.update.action);
+            const parsed = updateOwnerRepo(j.update);
             if (!parsed)
                 return;
             const [owner, repo] = parsed;

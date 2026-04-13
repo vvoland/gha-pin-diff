@@ -1,5 +1,5 @@
 name: 'Action Pin Diff'
-description: 'Comments on PRs with a diff summary when GitHub Actions are updated via SHA pinning'
+description: 'Comments on PRs with a diff summary for pinned GitHub Actions and Neovim lazy-lock.json updates'
 inputs:
   github-token:
     description: 'GitHub token for API access'

@@ -6,6 +6,7 @@ export interface ActionUpdate {
     oldTag: string;
     newTag: string;
     file: string;
+    repo?: string;
 }
 /** Reports whether s is a 40-character hexadecimal string. */
 export declare function isSHA(s: string): boolean;

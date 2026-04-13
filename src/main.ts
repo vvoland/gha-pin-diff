@@ -2,6 +2,7 @@ import { ensure } from "./comment/comment.js";
 import { fetch } from "./compare/compare.js";
 import { parse, type ActionUpdate } from "./diffparser/parser.js";
 import { Client } from "./github/client.js";
+import { scanPluginRepos } from "./lazy/plugins.js";
 import { check, formatMismatch } from "./pinverify/verify.js";
 import { comment } from "./render/render.js";
 import path from "node:path";
@@ -31,30 +32,31 @@ async function run(): Promise<void> {
   // 1. Fetch changed files in the PR.
   const files = await client.listPRFiles(owner, repoName, pr);
 
-  // 2. Filter to workflow files and collect patches.
+  // 2. Filter to supported files and collect patches.
   const patches: Record<string, string> = {};
   for (const f of files) {
-    if (isWorkflowFile(f.filename) && f.patch) {
+    if (isSupportedFile(f.filename) && f.patch) {
       patches[f.filename] = f.patch;
     }
   }
 
   if (Object.keys(patches).length === 0) {
-    console.log("no workflow file changes found");
+    console.log("no supported file changes found");
     return ensure(client, owner, repoName, pr, "");
   }
 
-  // 3. Parse action pin changes from patches.
+  // 3. Parse pinned ref changes from patches.
   let updates = parse(patches);
+  updates = resolveLazyLockRepos(updates);
   if (updates.length === 0) {
-    console.log("no SHA-pinned action changes detected");
+    console.log("no pinned ref changes detected");
     return ensure(client, owner, repoName, pr, "");
   }
 
   // Deduplicate updates that refer to the same comparison.
   updates = dedup(updates);
 
-  console.log(`found ${updates.length} unique action pin update(s)`);
+  console.log(`found ${updates.length} unique pin update(s)`);
 
   // 4. Fetch comparisons.
   const results = await fetch(client, updates);
@@ -102,6 +104,28 @@ function isWorkflowFile(filePath: string): boolean {
   return (
     dir === ".github/workflows" || dir.startsWith(".github/workflows/")
   );
+}
+
+function isLazyLockFile(filePath: string): boolean {
+  return filePath === "lazy-lock.json" || filePath.endsWith("/lazy-lock.json");
+}
+
+function isSupportedFile(filePath: string): boolean {
+  return isWorkflowFile(filePath) || isLazyLockFile(filePath);
+}
+
+function resolveLazyLockRepos(updates: ActionUpdate[]): ActionUpdate[] {
+  if (!updates.some((u) => isLazyLockFile(u.file) && !u.repo)) {
+    return updates;
+  }
+
+  const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+  const repos = scanPluginRepos(workspace);
+  return updates.map((u) => {
+    if (!isLazyLockFile(u.file) || u.repo) return u;
+    const repo = repos.get(u.action);
+    return repo ? { ...u, repo } : u;
+  });
 }
 
 function dedup(updates: ActionUpdate[]): ActionUpdate[] {
