@@ -1,11 +1,12 @@
 /** Represents a single action whose version ref changed. */
 export interface ActionUpdate {
-  action: string; // e.g. "actions/checkout"
+  action: string; // display name, e.g. "actions/checkout" or "fzf-lua"
   oldRef: string; // git ref: 40-char SHA or tag name
   newRef: string; // git ref: 40-char SHA or tag name
   oldTag: string; // human-readable version (from inline comment or tag ref itself)
   newTag: string; // human-readable version
   file: string; // workflow file path
+  repo?: string; // GitHub repository path, e.g. "actions/checkout"
 }
 
 const shaRe = /^[0-9a-f]{40}$/;
@@ -66,6 +67,13 @@ function parseUses(s: string): [string, string, string] | null {
 }
 
 function parsePatch(file: string, patch: string): ActionUpdate[] {
+  if (isLazyLockFile(file)) {
+    return parseLazyLockPatch(file, patch);
+  }
+  return parseUsesPatch(file, patch);
+}
+
+function parseUsesPatch(file: string, patch: string): ActionUpdate[] {
   const removed = new Map<string, Ref[]>();
   const added = new Map<string, Ref[]>();
 
@@ -105,4 +113,69 @@ function parsePatch(file: string, patch: string): ActionUpdate[] {
     added.delete(action);
   }
   return updates;
+}
+
+function parseLazyLockPatch(file: string, patch: string): ActionUpdate[] {
+  const removed = new Map<string, Ref[]>();
+  const added = new Map<string, Ref[]>();
+
+  for (const line of patch.split("\n")) {
+    if (line.length === 0) continue;
+
+    const prefix = line[0];
+    if (prefix !== "-" && prefix !== "+") continue;
+
+    const parsed = parseLazyLockLine(line.substring(1));
+    if (!parsed) continue;
+
+    const [plugin, commit] = parsed;
+    const r: Ref = { raw: commit, tag: "" };
+    const target = prefix === "-" ? removed : added;
+    const existing = target.get(plugin) || [];
+    existing.push(r);
+    target.set(plugin, existing);
+  }
+
+  const updates: ActionUpdate[] = [];
+  for (const [plugin, rems] of removed) {
+    const adds = added.get(plugin) || [];
+    const n = Math.min(rems.length, adds.length);
+    for (let i = 0; i < n; i++) {
+      if (rems[i].raw === adds[i].raw) continue;
+      updates.push({
+        action: plugin,
+        oldRef: rems[i].raw,
+        newRef: adds[i].raw,
+        oldTag: "",
+        newTag: "",
+        file,
+        repo: repoFromLabel(plugin),
+      });
+    }
+    added.delete(plugin);
+  }
+
+  return updates;
+}
+
+function parseLazyLockLine(s: string): [string, string] | null {
+  const m = s.match(/^\s*"([^"]+)"\s*:\s*\{(.*)\}\s*,?\s*$/);
+  if (!m) return null;
+
+  const plugin = m[1];
+  const body = m[2];
+  const commitMatch = body.match(/"commit"\s*:\s*"([0-9a-f]{40})"/);
+  if (!commitMatch) return null;
+
+  return [plugin, commitMatch[1]];
+}
+
+function isLazyLockFile(file: string): boolean {
+  return file === "lazy-lock.json" || file.endsWith("/lazy-lock.json");
+}
+
+function repoFromLabel(label: string): string | undefined {
+  const parts = label.split("/");
+  if (parts.length < 2) return undefined;
+  return `${parts[0]}/${parts[1]}`;
 }

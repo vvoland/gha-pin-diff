@@ -1,6 +1,6 @@
 # gha-pin-diff
 
-A GitHub Action that verifies SHA-pinned actions in workflow files and comments on PRs with a diff summary.
+A GitHub Action that comments on PRs with a diff summary for pinned GitHub Actions and Neovim `lazy-lock.json` updates.
 
 ## Why
 
@@ -65,6 +65,7 @@ jobs:
   pin-diff:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: vvoland/gha-pin-diff@v1
 ```
 
@@ -122,6 +123,12 @@ The exit code is non-zero when mismatches are found, making it suitable for CI o
 - **Tag / SHA mismatch**: pinned SHA doesn't match what the tag comment resolves to
 - **Step actions**: `uses: owner/repo@ref`
 - **Reusable workflows**: `uses: owner/repo/.github/workflows/file.yml@ref`
+- **Neovim lazy.nvim lockfiles**: `lazy-lock.json` commit bumps
+
+For `lazy-lock.json`, the action resolves plugin aliases to GitHub repositories by
+scanning `lua/plugins/**/*.lua` in the checked-out workspace. Without a checkout,
+lazy-lock updates are still detected, but unresolved aliases are rendered without
+repository links or compare URLs.
 
 ## Behavior
 

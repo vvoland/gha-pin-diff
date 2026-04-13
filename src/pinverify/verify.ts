@@ -1,6 +1,6 @@
 import { isSHA, type ActionUpdate } from "../diffparser/parser.js";
 import type { Client } from "../github/client.js";
-import { actionOwnerRepo } from "../compare/compare.js";
+import { updateOwnerRepo } from "../compare/compare.js";
 
 /** Reports a tag comment that doesn't match the pinned SHA. */
 export interface Mismatch {
@@ -44,7 +44,7 @@ export async function check(
 
     promises.push(
       (async () => {
-        const parsed = actionOwnerRepo(j.update.action);
+        const parsed = updateOwnerRepo(j.update);
         if (!parsed) return;
         const [owner, repo] = parsed;
         try {

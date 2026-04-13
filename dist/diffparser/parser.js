@@ -48,6 +48,12 @@ function parseUses(s) {
     return [actionPart, ref, tag];
 }
 function parsePatch(file, patch) {
+    if (isLazyLockFile(file)) {
+        return parseLazyLockPatch(file, patch);
+    }
+    return parseUsesPatch(file, patch);
+}
+function parseUsesPatch(file, patch) {
     const removed = new Map();
     const added = new Map();
     for (const line of patch.split("\n")) {
@@ -85,5 +91,65 @@ function parsePatch(file, patch) {
         added.delete(action);
     }
     return updates;
+}
+function parseLazyLockPatch(file, patch) {
+    const removed = new Map();
+    const added = new Map();
+    for (const line of patch.split("\n")) {
+        if (line.length === 0)
+            continue;
+        const prefix = line[0];
+        if (prefix !== "-" && prefix !== "+")
+            continue;
+        const parsed = parseLazyLockLine(line.substring(1));
+        if (!parsed)
+            continue;
+        const [plugin, commit] = parsed;
+        const r = { raw: commit, tag: "" };
+        const target = prefix === "-" ? removed : added;
+        const existing = target.get(plugin) || [];
+        existing.push(r);
+        target.set(plugin, existing);
+    }
+    const updates = [];
+    for (const [plugin, rems] of removed) {
+        const adds = added.get(plugin) || [];
+        const n = Math.min(rems.length, adds.length);
+        for (let i = 0; i < n; i++) {
+            if (rems[i].raw === adds[i].raw)
+                continue;
+            updates.push({
+                action: plugin,
+                oldRef: rems[i].raw,
+                newRef: adds[i].raw,
+                oldTag: "",
+                newTag: "",
+                file,
+                repo: repoFromLabel(plugin),
+            });
+        }
+        added.delete(plugin);
+    }
+    return updates;
+}
+function parseLazyLockLine(s) {
+    const m = s.match(/^\s*"([^"]+)"\s*:\s*\{(.*)\}\s*,?\s*$/);
+    if (!m)
+        return null;
+    const plugin = m[1];
+    const body = m[2];
+    const commitMatch = body.match(/"commit"\s*:\s*"([0-9a-f]{40})"/);
+    if (!commitMatch)
+        return null;
+    return [plugin, commitMatch[1]];
+}
+function isLazyLockFile(file) {
+    return file === "lazy-lock.json" || file.endsWith("/lazy-lock.json");
+}
+function repoFromLabel(label) {
+    const parts = label.split("/");
+    if (parts.length < 2)
+        return undefined;
+    return `${parts[0]}/${parts[1]}`;
 }
 //# sourceMappingURL=parser.js.map

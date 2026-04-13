@@ -4,14 +4,14 @@ export async function fetch(client, updates) {
     return Promise.all(updates.map((u) => fetchOne(client, u)));
 }
 async function fetchOne(client, u) {
-    const parsed = actionOwnerRepo(u.action);
+    const parsed = updateOwnerRepo(u);
     if (!parsed) {
         return {
             update: u,
             compareURL: "",
             totalCommits: 0,
             commits: [],
-            err: new Error(`cannot parse owner/repo from "${u.action}"`),
+            err: new Error(`cannot resolve owner/repo for "${u.action}"`),
         };
     }
     const [owner, repo] = parsed;
@@ -67,6 +67,9 @@ export function actionOwnerRepo(action) {
     if (parts.length < 2)
         return null;
     return [parts[0], parts[1]];
+}
+export function updateOwnerRepo(update) {
+    return actionOwnerRepo(update.repo || update.action);
 }
 function firstLine(s) {
     const idx = s.indexOf("\n");

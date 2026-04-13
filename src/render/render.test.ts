@@ -70,6 +70,31 @@ describe("comment", () => {
     assert.ok(got.includes("View diff manually"));
   });
 
+  it("renders unresolved lazy-lock entries without broken links", () => {
+    const results: Result[] = [
+      {
+        update: {
+          action: "codecompanion.nvim",
+          oldRef: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          newRef: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          oldTag: "",
+          newTag: "",
+          file: "neovim/lazy-lock.json",
+        },
+        compareURL: "",
+        totalCommits: 0,
+        commits: [],
+        err: new Error('cannot resolve owner/repo for "codecompanion.nvim"'),
+      },
+    ];
+
+    const got = comment(results, []);
+    assert.ok(got.includes("### `codecompanion.nvim`"));
+    assert.ok(got.includes("Refs: `aaaaaaa` → `bbbbbbb`"));
+    assert.ok(!got.includes("https://github.com/codecompanion.nvim"));
+    assert.ok(!got.includes("View diff manually"));
+  });
+
   it("truncates long commit lists", () => {
     const commits: CommitInfo[] = Array.from({ length: 20 }, (_, i) => ({
       sha: `abc${String(i).padStart(4, "0")}567890abc1234567890abc1234567890ab`,
