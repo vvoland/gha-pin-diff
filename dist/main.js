@@ -2,7 +2,7 @@ import { ensure } from "./comment/comment.js";
 import { fetch } from "./compare/compare.js";
 import { parse } from "./diffparser/parser.js";
 import { Client } from "./github/client.js";
-import { scanPluginRepos } from "./lazy/plugins.js";
+import { resolveLazyLockRepos as resolveLazyLockReposInWorkspace } from "./lazy/plugins.js";
 import { check, formatMismatch } from "./pinverify/verify.js";
 import { comment } from "./render/render.js";
 import path from "node:path";
@@ -93,17 +93,8 @@ function isSupportedFile(filePath) {
     return isWorkflowFile(filePath) || isLazyLockFile(filePath);
 }
 function resolveLazyLockRepos(updates) {
-    if (!updates.some((u) => isLazyLockFile(u.file) && !u.repo)) {
-        return updates;
-    }
     const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-    const repos = scanPluginRepos(workspace);
-    return updates.map((u) => {
-        if (!isLazyLockFile(u.file) || u.repo)
-            return u;
-        const repo = repos.get(u.action);
-        return repo ? { ...u, repo } : u;
-    });
+    return resolveLazyLockReposInWorkspace(workspace, updates);
 }
 function dedup(updates) {
     const seen = new Set();

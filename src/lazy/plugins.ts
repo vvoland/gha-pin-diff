@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import type { ActionUpdate } from "../diffparser/parser.js";
 
 const repoRe = /(["'])([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)\1/g;
 const nameRe = /name\s*=\s*(["'])([^"']+)\1/;
@@ -15,6 +16,27 @@ export function scanPluginRepos(rootDir: string): Map<string, string> {
   }
 
   return repos;
+}
+
+export function resolveLazyLockRepos(
+  workspace: string,
+  updates: ActionUpdate[]
+): ActionUpdate[] {
+  const cache = new Map<string, Map<string, string>>();
+
+  return updates.map((u) => {
+    if (!isLazyLockFile(u.file) || u.repo) return u;
+
+    const root = resolve(workspace, dirname(u.file));
+    let repos = cache.get(root);
+    if (!repos) {
+      repos = scanPluginRepos(root);
+      cache.set(root, repos);
+    }
+
+    const repo = repos.get(u.action);
+    return repo ? { ...u, repo } : u;
+  });
 }
 
 function collectPluginRepos(content: string, repos: Map<string, string>): void {
@@ -42,6 +64,10 @@ function addAlias(repos: Map<string, string>, alias: string, repo: string): void
 function repoName(repo: string): string {
   const slash = repo.indexOf("/");
   return slash >= 0 ? repo.slice(slash + 1) : repo;
+}
+
+function isLazyLockFile(filePath: string): boolean {
+  return filePath === "lazy-lock.json" || filePath.endsWith("/lazy-lock.json");
 }
 
 function findLuaFiles(dir: string): string[] {
