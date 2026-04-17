@@ -44,4 +44,5 @@ dist/                    Compiled JavaScript output.
 - Tests use `node:http` `createServer` for API mocking.
 - `*.test.ts` files named `moby.test.ts` are integration tests using real PR data.
 - Errors from the GitHub API are always `APIError` instances.
-- The action never fails a PR — runtime errors are logged, not fatal.
+- The action fails on tag/SHA mismatches by default (`fail-on-mismatch` input).
+- Runtime errors (API failures, missing repos) are logged, not fatal.

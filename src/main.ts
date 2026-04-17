@@ -12,6 +12,12 @@ function getInput(name: string): string | undefined {
   return process.env[`INPUT_${name.toUpperCase()}`];
 }
 
+function getBoolInput(name: string, defaultValue: boolean): boolean {
+  const v = getInput(name);
+  if (v === undefined) return defaultValue;
+  return v === "true";
+}
+
 async function run(): Promise<void> {
   const token =
     getInput("GITHUB-TOKEN") ?? process.env.GITHUB_TOKEN;
@@ -26,6 +32,7 @@ async function run(): Promise<void> {
   const repoName = repo.substring(slashIdx + 1);
 
   const pr = getPRNumber();
+  const failOnMismatch = getBoolInput("FAIL-ON-MISMATCH", true);
 
   const client = new Client(token);
 
@@ -71,7 +78,12 @@ async function run(): Promise<void> {
   const body = comment(results, mismatches);
 
   // 7. Create or update PR comment.
-  return ensure(client, owner, repoName, pr, body);
+  await ensure(client, owner, repoName, pr, body);
+
+  // 8. Fail if mismatches found and configured to do so.
+  if (mismatches.length > 0 && failOnMismatch) {
+    throw new Error(`${mismatches.length} tag/SHA mismatch(es) detected`);
+  }
 }
 
 function getPRNumber(): number {

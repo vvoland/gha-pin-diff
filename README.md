@@ -47,6 +47,7 @@ When the pinned SHA doesn't match the tag in the inline comment:
 > | `actions/checkout` | `v6.0.1` | `8e8c483` | `de0fac2` |
 
 This catches typos, stale comments, and copy-paste errors that are impossible to spot in review.
+By default, the workflow **fails** when a mismatch is detected.
 
 ## Usage
 
@@ -74,6 +75,7 @@ jobs:
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
 | `github-token` | Yes | `${{ github.token }}` | GitHub token for API access |
+| `fail-on-mismatch` | No | `true` | Fail the workflow when a tag/SHA mismatch is detected |
 
 ### Permissions
 
@@ -135,12 +137,12 @@ repository links or compare URLs.
 | Scenario | Action |
 |----------|--------|
 | Version changes found | Post or update comment with diff summary |
-| Tag/SHA mismatch detected | Show warning table at top of comment |
+| Tag/SHA mismatch detected | Show warning table, fail the workflow (unless `fail-on-mismatch: false`) |
 | No changes | Delete existing bot comment, if any |
 | Compare API fails (deleted repo, etc.) | Show warning with manual compare link |
 | >15 commits per action | Show last 15, link to full comparison |
 
-The bot never fails a PR — errors are logged, not fatal.
+Runtime errors (API failures, missing repos) are logged as warnings, not fatal.
 
 ## Development
 

@@ -5,6 +5,10 @@ inputs:
     description: 'GitHub token for API access'
     required: true
     default: ${{ github.token }}
+  fail-on-mismatch:
+    description: 'Fail the workflow when a tag/SHA mismatch is detected'
+    required: false
+    default: 'true'
 runs:
   using: 'node24'
   main: 'dist/main.js'

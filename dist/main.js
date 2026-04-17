@@ -10,6 +10,12 @@ import { readFileSync } from "node:fs";
 function getInput(name) {
     return process.env[`INPUT_${name.toUpperCase()}`];
 }
+function getBoolInput(name, defaultValue) {
+    const v = getInput(name);
+    if (v === undefined)
+        return defaultValue;
+    return v === "true";
+}
 async function run() {
     const token = getInput("GITHUB-TOKEN") ?? process.env.GITHUB_TOKEN;
     if (!token)
@@ -23,6 +29,7 @@ async function run() {
     const owner = repo.substring(0, slashIdx);
     const repoName = repo.substring(slashIdx + 1);
     const pr = getPRNumber();
+    const failOnMismatch = getBoolInput("FAIL-ON-MISMATCH", true);
     const client = new Client(token);
     // 1. Fetch changed files in the PR.
     const files = await client.listPRFiles(owner, repoName, pr);
@@ -57,7 +64,11 @@ async function run() {
     // 6. Render comment.
     const body = comment(results, mismatches);
     // 7. Create or update PR comment.
-    return ensure(client, owner, repoName, pr, body);
+    await ensure(client, owner, repoName, pr, body);
+    // 8. Fail if mismatches found and configured to do so.
+    if (mismatches.length > 0 && failOnMismatch) {
+        throw new Error(`${mismatches.length} tag/SHA mismatch(es) detected`);
+    }
 }
 function getPRNumber() {
     // Try PR_NUMBER env var first (backwards compat).
