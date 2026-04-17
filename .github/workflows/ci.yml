@@ -45,8 +45,8 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
-  build:
-    name: Build (Docker)
+  dist:
+    name: Build dist
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -59,24 +59,6 @@ jobs:
           docker buildx bake \
             --set '*.cache-from=type=gha' \
             --set '*.cache-to=type=gha,mode=max'
-
-  dist:
-    name: Check dist
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: '24'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
 
       - name: Check dist is up to date
         run: |

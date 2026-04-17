@@ -1,8 +1,8 @@
 group "default" {
-    targets = ["build"]
+    targets = ["dist"]
 }
 
-target "build" {
+target "dist" {
     dockerfile = "Dockerfile"
     context = "."
     target = "dist"
