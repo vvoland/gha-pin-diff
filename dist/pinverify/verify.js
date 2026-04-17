@@ -1,5 +1,8 @@
 import { isSHA } from "../diffparser/parser.js";
+import { APIError } from "../github/client.js";
 import { updateOwnerRepo } from "../compare/compare.js";
+/** Sentinel stored in the resolved map when the tag does not exist. */
+const TAG_NOT_FOUND = "!not-found";
 /**
  * Verifies that new SHA pins match their inline tag comments.
  * Only checks updates where newRef is a SHA and newTag is present.
@@ -35,6 +38,9 @@ export async function check(client, updates) {
                 resolved.set(k, sha);
             }
             catch (err) {
+                if (err instanceof APIError && (err.statusCode === 404 || err.statusCode === 422)) {
+                    resolved.set(k, TAG_NOT_FOUND);
+                }
                 console.warn(`warning: could not resolve tag ${j.update.newTag} for ${j.update.action}: ${err}`);
             }
         })());
@@ -44,9 +50,16 @@ export async function check(client, updates) {
     for (const j of jobs) {
         const k = `${j.update.action}\0${j.update.newTag}`;
         const sha = resolved.get(k);
-        if (!sha)
+        if (sha === undefined)
             continue;
-        if (sha !== j.update.newRef) {
+        if (sha === TAG_NOT_FOUND) {
+            mismatches.push({
+                update: j.update,
+                tag: j.update.newTag,
+                expectSHA: "",
+            });
+        }
+        else if (sha !== j.update.newRef) {
             mismatches.push({
                 update: j.update,
                 tag: j.update.newTag,
@@ -58,6 +71,9 @@ export async function check(client, updates) {
 }
 /** Returns a human-readable description of a mismatch. */
 export function formatMismatch(m) {
+    if (!m.expectSHA) {
+        return `${m.update.action}: tag ${m.tag} does not exist, but pinned to ${m.update.newRef.substring(0, 7)}`;
+    }
     return `${m.update.action}: tag ${m.tag} resolves to ${m.expectSHA.substring(0, 7)}, but pinned to ${m.update.newRef.substring(0, 7)}`;
 }
 //# sourceMappingURL=verify.js.map

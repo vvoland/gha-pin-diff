@@ -17,12 +17,15 @@ export function comment(results: Result[], mismatches: Mismatch[]): string {
   if (results.length === 0 && mismatches.length === 0) return "";
 
   results = dedup(results);
+  const mismatchKeys = new Set(
+    mismatches.map((m) => `${m.update.action}\0${m.update.newRef}`),
+  );
   const pinOnly: Result[] = [];
   const changed: Result[] = [];
   for (const r of results) {
-    if (isPinOnly(r)) {
+    if (isPinOnly(r) && !mismatchKeys.has(`${r.update.action}\0${r.update.newRef}`)) {
       pinOnly.push(r);
-    } else {
+    } else if (!isPinOnly(r)) {
       changed.push(r);
     }
   }
@@ -104,9 +107,15 @@ function renderMismatches(mismatches: Mismatch[]): string {
     const u = m.update;
     const or = ownerRepoStr(u);
     const tagURL = or ? `https://github.com/${or}/releases/tag/${m.tag}` : "";
-    const expectURL = or ? `https://github.com/${or}/commit/${m.expectSHA}` : "";
     const pinnedURL = or ? `https://github.com/${or}/commit/${u.newRef}` : "";
-    b += `| ${renderLabel(u)} | ${renderRef(m.tag, tagURL)} | ${renderRef(shortRef(m.expectSHA), expectURL)} | ${renderRef(shortRef(u.newRef), pinnedURL)} |\n`;
+    let expectCell: string;
+    if (m.expectSHA) {
+      const expectURL = or ? `https://github.com/${or}/commit/${m.expectSHA}` : "";
+      expectCell = renderRef(shortRef(m.expectSHA), expectURL);
+    } else {
+      expectCell = "*tag not found*";
+    }
+    b += `| ${renderLabel(u)} | ${renderRef(m.tag, tagURL)} | ${expectCell} | ${renderRef(shortRef(u.newRef), pinnedURL)} |\n`;
   }
   return b;
 }

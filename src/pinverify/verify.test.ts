@@ -94,6 +94,52 @@ describe("check", () => {
     }
   });
 
+  it("detects non-existent tag (422)", async () => {
+    const { url, close } = await startServer((_req, res) => {
+      res.writeHead(422, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ message: "No commit found for SHA: v99.0.0" }));
+    });
+
+    try {
+      const client = new Client("");
+      client.setBaseURL(url);
+
+      const updates: ActionUpdate[] = [
+        { action: "actions/checkout", oldRef: sha40b, newRef: sha40a, oldTag: "v6.0.2", newTag: "v99.0.0", file: ".github/workflows/ci.yml" },
+      ];
+
+      const mismatches = await check(client, updates);
+      assert.equal(mismatches.length, 1);
+      assert.equal(mismatches[0].tag, "v99.0.0");
+      assert.equal(mismatches[0].expectSHA, "");
+    } finally {
+      close();
+    }
+  });
+
+  it("detects non-existent tag (404)", async () => {
+    const { url, close } = await startServer((_req, res) => {
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ message: "Not Found" }));
+    });
+
+    try {
+      const client = new Client("");
+      client.setBaseURL(url);
+
+      const updates: ActionUpdate[] = [
+        { action: "actions/checkout", oldRef: sha40b, newRef: sha40a, oldTag: "v6.0.2", newTag: "v99.0.0", file: ".github/workflows/ci.yml" },
+      ];
+
+      const mismatches = await check(client, updates);
+      assert.equal(mismatches.length, 1);
+      assert.equal(mismatches[0].tag, "v99.0.0");
+      assert.equal(mismatches[0].expectSHA, "");
+    } finally {
+      close();
+    }
+  });
+
   it("skips non-SHA ref", async () => {
     const { url, close } = await startServer((_req, res) => {
       res.writeHead(404);
@@ -214,10 +260,10 @@ describe("check", () => {
     }
   });
 
-  it("gracefully handles API errors", async () => {
+  it("skips on server errors", async () => {
     const { url, close } = await startServer((_req, res) => {
-      res.writeHead(404, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ message: "Not Found" }));
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ message: "Internal Server Error" }));
     });
 
     try {

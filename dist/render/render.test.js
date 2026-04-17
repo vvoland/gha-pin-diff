@@ -382,4 +382,108 @@ describe("comment", () => {
         assert.ok(mismatchIdx < setupGoIdx, "mismatch section should appear before regular results");
     });
 });
+describe("mismatch excludes pin-only", () => {
+    const sha40a = "de0fac2e4500dabe0009e67214ff5f5447ce83dd";
+    const sha40b = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    it("does not show mismatched result in pin-only table", () => {
+        const results = [
+            {
+                update: {
+                    action: "actions/checkout",
+                    oldRef: sha40a,
+                    newRef: sha40a,
+                    oldTag: "v6.0.2",
+                    newTag: "v7.0.0",
+                    file: ".github/workflows/pin-diff.yml",
+                },
+                totalCommits: 0,
+                compareURL: "",
+                commits: [],
+                err: null,
+            },
+        ];
+        const mismatches = [
+            {
+                update: results[0].update,
+                tag: "v7.0.0",
+                expectSHA: sha40b,
+            },
+        ];
+        const got = comment(results, mismatches);
+        assert.ok(got.includes("⚠️ Tag / SHA Mismatch"), "should show mismatch warning");
+        assert.ok(got.includes("`v7.0.0`"), "should reference the wrong tag");
+        assert.ok(!got.includes("📌 Pinned (digest unchanged)"), "should NOT show pin-only section for mismatched entry");
+    });
+    it("keeps non-mismatched entries in pin-only table", () => {
+        const sha40c = "cccccccccccccccccccccccccccccccccccccccc";
+        const results = [
+            {
+                update: {
+                    action: "actions/checkout",
+                    oldRef: sha40a,
+                    newRef: sha40a,
+                    oldTag: "v6.0.2",
+                    newTag: "v7.0.0",
+                    file: ".github/workflows/pin-diff.yml",
+                },
+                totalCommits: 0,
+                compareURL: "",
+                commits: [],
+                err: null,
+            },
+            {
+                update: {
+                    action: "actions/setup-go",
+                    oldRef: "v5",
+                    newRef: sha40c,
+                    oldTag: "v5",
+                    newTag: "v5",
+                    file: ".github/workflows/ci.yml",
+                },
+                totalCommits: 0,
+                compareURL: "",
+                commits: [],
+                err: null,
+            },
+        ];
+        const mismatches = [
+            {
+                update: results[0].update,
+                tag: "v7.0.0",
+                expectSHA: sha40b,
+            },
+        ];
+        const got = comment(results, mismatches);
+        assert.ok(got.includes("⚠️ Tag / SHA Mismatch"));
+        assert.ok(got.includes("📌 Pinned (digest unchanged)"), "should show pin-only for non-mismatched entry");
+        assert.ok(got.includes("actions/setup-go"), "setup-go should be in pin-only");
+        // actions/checkout should only appear in mismatch table, not in pin-only
+        const pinOnlySection = got.split("📌 Pinned")[1];
+        assert.ok(!pinOnlySection.includes("actions/checkout"), "checkout should NOT be in pin-only section");
+    });
+});
+describe("tag not found mismatch", () => {
+    it("renders tag not found in mismatch table", () => {
+        const sha40a = "de0fac2e4500dabe0009e67214ff5f5447ce83dd";
+        const mismatches = [
+            {
+                update: {
+                    action: "actions/checkout",
+                    oldRef: sha40a,
+                    newRef: sha40a,
+                    oldTag: "v6.0.2",
+                    newTag: "v7.0.0",
+                    file: ".github/workflows/ci.yml",
+                },
+                tag: "v7.0.0",
+                expectSHA: "",
+            },
+        ];
+        const got = comment([], mismatches);
+        assert.ok(got.includes("⚠️ Tag / SHA Mismatch"));
+        assert.ok(got.includes("`v7.0.0`"));
+        assert.ok(got.includes("*tag not found*"), "should show 'tag not found' for non-existent tag");
+        assert.ok(got.includes("[`de0fac2`]"), "should still show pinned SHA");
+    });
+});
 //# sourceMappingURL=render.test.js.map
