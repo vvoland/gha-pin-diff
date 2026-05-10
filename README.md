@@ -138,6 +138,7 @@ repository links or compare URLs.
 | Tag/SHA mismatch detected | Show warning table at top of comment |
 | No changes | Delete existing bot comment, if any |
 | Compare API fails (deleted repo, etc.) | Show warning with manual compare link |
+| Comment API returns 403 | Log a warning and continue without failing the PR |
 | >15 commits per action | Show last 15, link to full comparison |
 
 The bot never fails a PR — errors are logged, not fatal.
