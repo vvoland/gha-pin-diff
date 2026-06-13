@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { ensure } from "./comment.js";
-import { Client } from "../github/client.js";
+import { APIError, Client } from "../github/client.js";
 import { MARKER } from "../render/render.js";
 function startServer(handler) {
     return new Promise((resolve) => {
@@ -122,6 +122,36 @@ describe("ensure", () => {
             const client = new Client("");
             client.setBaseURL(url);
             await ensure(client, "o", "r", 1, "");
+        }
+        finally {
+            close();
+        }
+    });
+    it("surfaces APIError when comment creation is forbidden", async () => {
+        const { url, close } = await startServer((req, res) => {
+            if (req.url === "/repos/o/r/issues/1/comments?per_page=100&page=1" &&
+                req.method === "GET") {
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end("[]");
+                return;
+            }
+            if (req.url === "/repos/o/r/issues/1/comments" &&
+                req.method === "POST") {
+                res.writeHead(403, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ message: "Resource not accessible by integration" }));
+                return;
+            }
+            res.writeHead(404);
+            res.end();
+        });
+        try {
+            const client = new Client("");
+            client.setBaseURL(url);
+            await assert.rejects(ensure(client, "o", "r", 1, "new body"), (err) => {
+                assert.ok(err instanceof APIError);
+                assert.equal(err.statusCode, 403);
+                return true;
+            });
         }
         finally {
             close();

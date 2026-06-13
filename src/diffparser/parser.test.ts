@@ -11,7 +11,7 @@ function updatesEqual(a: ActionUpdate[], b: ActionUpdate[]): boolean {
   if (a.length === 0 && b.length === 0) return true;
   if (a.length !== b.length) return false;
   const key = (u: ActionUpdate) =>
-    `${u.action}|${u.oldRef}|${u.newRef}|${u.oldTag}|${u.newTag}|${u.file}`;
+    `${u.action}|${u.oldRef}|${u.newRef}|${u.oldTag}|${u.newTag}|${u.file}|${u.oldDigest ?? ""}|${u.newDigest ?? ""}`;
   const setA = new Map<string, number>();
   for (const u of a) setA.set(key(u), (setA.get(key(u)) || 0) + 1);
   const setB = new Map<string, number>();
@@ -272,12 +272,165 @@ describe("parse", () => {
       },
       want: [],
     },
+    {
+      name: "compose docker hub image version bump",
+      patches: {
+        "docker-compose.yml":
+          "@@ -3,7 +3,7 @@ services:\n" +
+          "   web:\n" +
+          "-    image: nginx:1.25.0\n" +
+          "+    image: nginx:1.26.0\n" +
+          "     ports:\n",
+      },
+      want: [
+        {
+          action: "nginx",
+          oldRef: "1.25.0", newRef: "1.26.0",
+          oldTag: "1.25.0", newTag: "1.26.0",
+          file: "docker-compose.yml",
+        },
+      ],
+    },
+    {
+      name: "compose ghcr image resolves to a repo",
+      patches: {
+        "compose.yaml":
+          "@@ -1,4 +1,4 @@ services:\n" +
+          "   app:\n" +
+          "-    image: ghcr.io/owner/repo:v1.2.3\n" +
+          "+    image: ghcr.io/owner/repo:v1.3.0\n",
+      },
+      want: [
+        {
+          action: "ghcr.io/owner/repo",
+          oldRef: "v1.2.3", newRef: "v1.3.0",
+          oldTag: "v1.2.3", newTag: "v1.3.0",
+          file: "compose.yaml",
+          repo: "owner/repo",
+        },
+      ],
+    },
+    {
+      name: "compose registry with port is not mistaken for a tag",
+      patches: {
+        "docker-compose.prod.yml":
+          "@@ -1,3 +1,3 @@\n" +
+          "-    image: registry.example.com:5000/team/app:1.0\n" +
+          "+    image: registry.example.com:5000/team/app:2.0\n",
+      },
+      want: [
+        {
+          action: "registry.example.com:5000/team/app",
+          oldRef: "1.0", newRef: "2.0",
+          oldTag: "1.0", newTag: "2.0",
+          file: "docker-compose.prod.yml",
+        },
+      ],
+    },
+    {
+      name: "compose image with quotes and digest",
+      patches: {
+        "compose.yml":
+          "@@ -1,3 +1,3 @@\n" +
+          `-    image: "postgres:15.2@sha256:${sha40a}${sha40a.slice(0, 24)}"\n` +
+          `+    image: "postgres:16.1@sha256:${sha40b}${sha40b.slice(0, 24)}"\n`,
+      },
+      want: [
+        {
+          action: "postgres",
+          oldRef: "15.2", newRef: "16.1",
+          oldTag: "15.2", newTag: "16.1",
+          oldDigest: `sha256:${sha40a}${sha40a.slice(0, 24)}`,
+          newDigest: `sha256:${sha40b}${sha40b.slice(0, 24)}`,
+          file: "compose.yml",
+        },
+      ],
+    },
+    {
+      name: "compose tag re-pinned to a new digest is reported",
+      patches: {
+        "docker-compose.yml":
+          "@@ -1,3 +1,3 @@\n" +
+          `-    image: nginx:1.26.0@sha256:${sha40a}${sha40a.slice(0, 24)}\n` +
+          `+    image: nginx:1.26.0@sha256:${sha40b}${sha40b.slice(0, 24)}\n`,
+      },
+      want: [
+        {
+          action: "nginx",
+          oldRef: "1.26.0", newRef: "1.26.0",
+          oldTag: "1.26.0", newTag: "1.26.0",
+          oldDigest: `sha256:${sha40a}${sha40a.slice(0, 24)}`,
+          newDigest: `sha256:${sha40b}${sha40b.slice(0, 24)}`,
+          file: "docker-compose.yml",
+        },
+      ],
+    },
+    {
+      name: "compose image with unchanged tag is skipped",
+      patches: {
+        "docker-compose.yml":
+          "@@ -1,5 +1,5 @@\n" +
+          "-    image: redis:7.2\n" +
+          "-    command: redis-server --appendonly no\n" +
+          "+    image: redis:7.2\n" +
+          "+    command: redis-server --appendonly yes\n",
+      },
+      want: [],
+    },
+    {
+      name: "compose image rename is not paired",
+      patches: {
+        "docker-compose.yml":
+          "@@ -1,3 +1,3 @@\n" +
+          "-    image: nginx:1.25\n" +
+          "+    image: caddy:2.7\n",
+      },
+      want: [],
+    },
   ];
 
   for (const tt of tests) {
     it(tt.name, () => {
       const got = parse(tt.patches);
       assert.ok(updatesEqual(got, tt.want), `Parse() =\n  ${JSON.stringify(got)}\nwant\n  ${JSON.stringify(tt.want)}`);
+    });
+  }
+});
+
+describe("parse compose image home resolution", () => {
+  const cases: { name: string; image: string; repo?: string; homeURL?: string }[] = [
+    {
+      name: "ghcr image maps to its GitHub repo",
+      image: "ghcr.io/owner/repo",
+      repo: "owner/repo",
+      homeURL: "https://github.com/owner/repo",
+    },
+    {
+      name: "official docker hub image",
+      image: "nginx",
+      homeURL: "https://hub.docker.com/_/nginx",
+    },
+    {
+      name: "namespaced docker hub image",
+      image: "grafana/grafana",
+      homeURL: "https://hub.docker.com/r/grafana/grafana",
+    },
+    {
+      name: "third-party registry",
+      image: "quay.io/prometheus/prometheus",
+      homeURL: "https://quay.io/prometheus/prometheus",
+    },
+  ];
+
+  for (const c of cases) {
+    it(c.name, () => {
+      const got = parse({
+        "docker-compose.yml":
+          `-    image: ${c.image}:1.0\n` + `+    image: ${c.image}:2.0\n`,
+      });
+      assert.equal(got.length, 1);
+      assert.equal(got[0].repo, c.repo);
+      assert.equal(got[0].homeURL, c.homeURL);
     });
   }
 });

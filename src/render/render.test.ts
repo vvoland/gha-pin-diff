@@ -435,4 +435,64 @@ describe("comment", () => {
     assert.ok(setupGoIdx >= 0);
     assert.ok(mismatchIdx < setupGoIdx, "mismatch section should appear before regular results");
   });
+
+  it("renders docker image bumps in their own section", () => {
+    const results: Result[] = [
+      {
+        update: {
+          action: "nginx",
+          oldRef: "1.25.0",
+          newRef: "1.26.0",
+          oldTag: "1.25.0",
+          newTag: "1.26.0",
+          file: "docker-compose.yml",
+          homeURL: "https://hub.docker.com/_/nginx",
+        },
+        compareURL: "",
+        totalCommits: 0,
+        commits: [],
+        err: null,
+      },
+    ];
+
+    const got = comment(results, []);
+    assert.ok(got.includes("### 🐳 Docker Images"));
+    assert.ok(
+      got.includes("| [`nginx`](https://hub.docker.com/_/nginx) | `1.25.0` | `1.26.0` |")
+    );
+    assert.ok(!got.includes("Could not fetch"), "image bumps must not render as errors");
+    assert.ok(!got.includes("digest unchanged"), "image bumps are version changes, not pins");
+  });
+
+  it("shows the shortened digest for digest-pinned images", () => {
+    const oldDigest = "sha256:" + "a".repeat(64);
+    const newDigest = "sha256:" + "b".repeat(64);
+    const results: Result[] = [
+      {
+        update: {
+          action: "nginx",
+          oldRef: "1.25.0",
+          newRef: "1.26.0",
+          oldTag: "1.25.0",
+          newTag: "1.26.0",
+          oldDigest,
+          newDigest,
+          file: "docker-compose.yml",
+          homeURL: "https://hub.docker.com/_/nginx",
+        },
+        compareURL: "",
+        totalCommits: 0,
+        commits: [],
+        err: null,
+      },
+    ];
+
+    const got = comment(results, []);
+    assert.ok(
+      got.includes(
+        "| [`nginx`](https://hub.docker.com/_/nginx) | `1.25.0@sha256:aaaaaaaaaaaa` | `1.26.0@sha256:bbbbbbbbbbbb` |"
+      ),
+      got
+    );
+  });
 });

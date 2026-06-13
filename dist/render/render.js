@@ -12,9 +12,13 @@ export function comment(results, mismatches) {
         return "";
     results = dedup(results);
     const pinOnly = [];
+    const images = [];
     const changed = [];
     for (const r of results) {
-        if (isPinOnly(r)) {
+        if (isImageOnly(r)) {
+            images.push(r);
+        }
+        else if (isPinOnly(r)) {
             pinOnly.push(r);
         }
         else {
@@ -30,6 +34,9 @@ export function comment(results, mismatches) {
     for (const r of changed) {
         b += "\n";
         b += renderResult(r);
+    }
+    if (images.length > 0) {
+        b += renderImages(images);
     }
     if (pinOnly.length > 0) {
         b += renderPinOnly(pinOnly);
@@ -58,6 +65,17 @@ function dedup(results) {
 function isPinOnly(r) {
     return r.err === null && r.totalCommits === 0;
 }
+/**
+ * Reports whether r is a version change for a dependency that is not backed by
+ * a GitHub repository (e.g. a Docker Hub image), so it has no commit list to
+ * show and is rendered as a plain version bump.
+ */
+function isImageOnly(r) {
+    return (r.err === null &&
+        r.totalCommits === 0 &&
+        !!r.update.homeURL &&
+        updateOwnerRepo(r.update) === null);
+}
 function ownerRepoStr(update) {
     const parsed = updateOwnerRepo(update);
     return parsed ? parsed.join("/") : null;
@@ -76,6 +94,33 @@ function renderPinOnly(results) {
         b += `| ${renderLabel(u)} | \`${tag}\` | ${renderRef(shortRef(u.newRef), commitURL)} |\n`;
     }
     return b;
+}
+function renderImages(results) {
+    let b = "\n### 🐳 Docker Images\n";
+    b += "\n| Image | Old | New |\n";
+    b += "|-------|-----|-----|\n";
+    for (const r of results) {
+        const u = r.update;
+        const old = imageRef(u.oldTag || shortRef(u.oldRef), u.oldDigest);
+        const newRef = imageRef(u.newTag || shortRef(u.newRef), u.newDigest);
+        b += `| ${renderLabel(u)} | \`${old}\` | \`${newRef}\` |\n`;
+    }
+    return b;
+}
+/**
+ * Formats an image reference as `tag@digest`, appending the shortened digest
+ * only when the image is digest-pinned. The digest is the immutable pin, so it
+ * is the part worth surfacing in review.
+ */
+function imageRef(tag, digest) {
+    return digest ? `${tag}@${shortDigest(digest)}` : tag;
+}
+/** Shortens a `sha256:<hash>` digest to its algorithm and first 12 hex chars. */
+function shortDigest(digest) {
+    const colon = digest.indexOf(":");
+    if (colon < 0)
+        return shortRef(digest);
+    return `${digest.substring(0, colon)}:${digest.substring(colon + 1, colon + 13)}`;
 }
 function renderMismatches(mismatches) {
     let b = "\n### ⚠️ Tag / SHA Mismatch\n";
@@ -142,7 +187,9 @@ function renderResult(r) {
 }
 function actionRepoURL(update) {
     const repo = ownerRepoStr(update);
-    return repo ? "https://github.com/" + repo : null;
+    if (repo)
+        return "https://github.com/" + repo;
+    return update.homeURL ?? null;
 }
 function renderLabel(update) {
     return renderRef(update.action, actionRepoURL(update));

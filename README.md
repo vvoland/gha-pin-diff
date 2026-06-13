@@ -56,6 +56,8 @@ on:
   pull_request:
     paths:
       - '.github/workflows/**'
+      - '**/compose.y*ml'
+      - '**/docker-compose*.y*ml'
 
 permissions:
   contents: read
@@ -124,11 +126,21 @@ The exit code is non-zero when mismatches are found, making it suitable for CI o
 - **Step actions**: `uses: owner/repo@ref`
 - **Reusable workflows**: `uses: owner/repo/.github/workflows/file.yml@ref`
 - **Neovim lazy.nvim lockfiles**: `lazy-lock.json` commit bumps
+- **Docker Compose images**: `image: name:tag[@sha256:digest]` version bumps in `compose.yaml` / `docker-compose.yml`
 
 For `lazy-lock.json`, the action resolves plugin aliases to GitHub repositories by
 scanning `lua/plugins/**/*.lua` in the checked-out workspace. Without a checkout,
 lazy-lock updates are still detected, but unresolved aliases are rendered without
 repository links or compare URLs.
+
+For Docker Compose files, `image:` tag changes are reported as version bumps.
+`ghcr.io/owner/repo` images are mapped to their backing GitHub repository, so the
+full commit comparison is shown just like an action. Images on other registries
+(Docker Hub, Quay, private registries) are listed in a **🐳 Docker Images** table
+linking to the registry page, since no commit history is available for them.
+Digest-pinned references such as `nginx:1.26.0@sha256:...` keep the digest as the
+immutable pin: it is shown alongside the tag, and re-pointing a tag to a new
+digest is reported even when the tag itself is unchanged.
 
 ## Behavior
 

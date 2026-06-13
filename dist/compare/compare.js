@@ -6,6 +6,12 @@ export async function fetch(client, updates) {
 async function fetchOne(client, u) {
     const parsed = updateOwnerRepo(u);
     if (!parsed) {
+        // A dependency that lives outside GitHub (e.g. a Docker Hub image) has no
+        // commit comparison to fetch. Report the version change without an error so
+        // it renders as a plain bump rather than a failure.
+        if (u.homeURL) {
+            return { update: u, compareURL: "", totalCommits: 0, commits: [], err: null };
+        }
         return {
             update: u,
             compareURL: "",

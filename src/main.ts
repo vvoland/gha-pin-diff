@@ -136,8 +136,17 @@ function isLazyLockFile(filePath: string): boolean {
   return filePath === "lazy-lock.json" || filePath.endsWith("/lazy-lock.json");
 }
 
+function isComposeFile(filePath: string): boolean {
+  const base = filePath.substring(filePath.lastIndexOf("/") + 1);
+  return /^(docker-)?compose(\.[^/]+)?\.ya?ml$/.test(base);
+}
+
 function isSupportedFile(filePath: string): boolean {
-  return isWorkflowFile(filePath) || isLazyLockFile(filePath);
+  return (
+    isWorkflowFile(filePath) ||
+    isLazyLockFile(filePath) ||
+    isComposeFile(filePath)
+  );
 }
 
 function resolveLazyLockRepos(updates: ActionUpdate[]): ActionUpdate[] {

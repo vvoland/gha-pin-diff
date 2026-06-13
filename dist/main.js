@@ -1,7 +1,7 @@
 import { ensure } from "./comment/comment.js";
 import { fetch } from "./compare/compare.js";
 import { parse } from "./diffparser/parser.js";
-import { Client } from "./github/client.js";
+import { APIError, Client } from "./github/client.js";
 import { resolveLazyLockRepos as resolveLazyLockReposInWorkspace } from "./lazy/plugins.js";
 import { check, formatMismatch } from "./pinverify/verify.js";
 import { comment } from "./render/render.js";
@@ -57,7 +57,30 @@ async function run() {
     // 6. Render comment.
     const body = comment(results, mismatches);
     // 7. Create or update PR comment.
-    return ensure(client, owner, repoName, pr, body);
+    try {
+        return await ensure(client, owner, repoName, pr, body);
+    }
+    catch (err) {
+        if (isCommentPermissionError(err)) {
+            console.log(`::warning::${formatCommentPermissionError(err)}`);
+            return;
+        }
+        throw err;
+    }
+}
+function isCommentPermissionError(err) {
+    return (err instanceof APIError &&
+        err.statusCode === 403 &&
+        /\/issues(?:\/comments)?(?:\?|$)/.test(err.url) &&
+        err.body.includes("Resource not accessible by integration"));
+}
+function formatCommentPermissionError(err) {
+    return [
+        "unable to post PR comment with the current token",
+        "GitHub returned 403 Resource not accessible by integration",
+        "this commonly happens on pull requests from forks or Dependabot runs without comment permissions",
+        "grant pull-requests: write or run in a context with a writable token",
+    ].join("; ");
 }
 function getPRNumber() {
     // Try PR_NUMBER env var first (backwards compat).
@@ -89,8 +112,14 @@ function isWorkflowFile(filePath) {
 function isLazyLockFile(filePath) {
     return filePath === "lazy-lock.json" || filePath.endsWith("/lazy-lock.json");
 }
+function isComposeFile(filePath) {
+    const base = filePath.substring(filePath.lastIndexOf("/") + 1);
+    return /^(docker-)?compose(\.[^/]+)?\.ya?ml$/.test(base);
+}
 function isSupportedFile(filePath) {
-    return isWorkflowFile(filePath) || isLazyLockFile(filePath);
+    return (isWorkflowFile(filePath) ||
+        isLazyLockFile(filePath) ||
+        isComposeFile(filePath));
 }
 function resolveLazyLockRepos(updates) {
     const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
