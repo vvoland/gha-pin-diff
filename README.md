@@ -123,6 +123,7 @@ The exit code is non-zero when mismatches are found, making it suitable for CI o
 - **Tag → Tag**: `@v4.1.1` → `@v4.1.4` (simple version bumps)
 - **Tag comment changes**: `@sha # v6.0.2` → `@sha # v6.0.1` (same SHA, different comment)
 - **Tag / SHA mismatch**: pinned SHA doesn't match what the tag comment resolves to
+- **Image tag / digest mismatch**: a Compose tag no longer resolves to its pinned digest in the registry
 - **Step actions**: `uses: owner/repo@ref`
 - **Reusable workflows**: `uses: owner/repo/.github/workflows/file.yml@ref`
 - **Neovim lazy.nvim lockfiles**: `lazy-lock.json` commit bumps
@@ -142,12 +143,21 @@ Digest-pinned references such as `nginx:1.26.0@sha256:...` keep the digest as th
 immutable pin: it is shown alongside the tag, and re-pointing a tag to a new
 digest is reported even when the tag itself is unchanged.
 
+For digest-pinned images, the action queries the image's OCI registry (Docker
+Hub, GHCR, or any distribution-spec registry, using an anonymous pull token when
+required) to confirm the new tag still resolves to the pinned digest. A
+disagreement, the tag was moved or the digest was hand-edited, is surfaced in an
+**⚠️ Image Tag / Digest Mismatch** warning table, the Docker analog of the
+tag/SHA mismatch check. Registries that need authentication or are unreachable
+are skipped without failing the PR.
+
 ## Behavior
 
 | Scenario | Action |
 |----------|--------|
 | Version changes found | Post or update comment with diff summary |
 | Tag/SHA mismatch detected | Show warning table at top of comment |
+| Image tag/digest mismatch detected | Show warning table at top of comment |
 | No changes | Delete existing bot comment, if any |
 | Compare API fails (deleted repo, etc.) | Show warning with manual compare link |
 | Comment API returns 403 | Log a warning and continue without failing the PR |

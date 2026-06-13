@@ -7,8 +7,10 @@ export const MAX_COMMITS_SHOWN = 15;
  * Renders the full Markdown comment body for the given comparison results.
  * Returns empty string if there are no results and no mismatches.
  */
-export function comment(results, mismatches) {
-    if (results.length === 0 && mismatches.length === 0)
+export function comment(results, mismatches, digestMismatches = []) {
+    if (results.length === 0 &&
+        mismatches.length === 0 &&
+        digestMismatches.length === 0)
         return "";
     results = dedup(results);
     const pinOnly = [];
@@ -30,6 +32,9 @@ export function comment(results, mismatches) {
     b += "\n## 🔄 Action Pin Diff\n";
     if (mismatches.length > 0) {
         b += renderMismatches(mismatches);
+    }
+    if (digestMismatches.length > 0) {
+        b += renderDigestMismatches(digestMismatches);
     }
     for (const r of changed) {
         b += "\n";
@@ -134,6 +139,17 @@ function renderMismatches(mismatches) {
         const expectURL = or ? `https://github.com/${or}/commit/${m.expectSHA}` : "";
         const pinnedURL = or ? `https://github.com/${or}/commit/${u.newRef}` : "";
         b += `| ${renderLabel(u)} | ${renderRef(m.tag, tagURL)} | ${renderRef(shortRef(m.expectSHA), expectURL)} | ${renderRef(shortRef(u.newRef), pinnedURL)} |\n`;
+    }
+    return b;
+}
+function renderDigestMismatches(mismatches) {
+    let b = "\n### ⚠️ Image Tag / Digest Mismatch\n";
+    b += "\nThe following images pin a digest that the registry no longer resolves the tag to:\n";
+    b += "\n| Image | Tag | Registry Digest | Pinned Digest |\n";
+    b += "|-------|-----|-----------------|---------------|\n";
+    for (const m of mismatches) {
+        const u = m.update;
+        b += `| ${renderLabel(u)} | \`${m.tag}\` | \`${shortDigest(m.expectDigest)}\` | \`${shortDigest(u.newDigest ?? "")}\` |\n`;
     }
     return b;
 }

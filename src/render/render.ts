@@ -1,6 +1,7 @@
 import type { Result } from "../compare/compare.js";
 import { updateOwnerRepo } from "../compare/compare.js";
 import type { Mismatch } from "../pinverify/verify.js";
+import type { DigestMismatch } from "../registry/verify.js";
 import type { ActionUpdate } from "../diffparser/parser.js";
 
 /** HTML comment used to identify bot comments. */
@@ -13,8 +14,17 @@ export const MAX_COMMITS_SHOWN = 15;
  * Renders the full Markdown comment body for the given comparison results.
  * Returns empty string if there are no results and no mismatches.
  */
-export function comment(results: Result[], mismatches: Mismatch[]): string {
-  if (results.length === 0 && mismatches.length === 0) return "";
+export function comment(
+  results: Result[],
+  mismatches: Mismatch[],
+  digestMismatches: DigestMismatch[] = []
+): string {
+  if (
+    results.length === 0 &&
+    mismatches.length === 0 &&
+    digestMismatches.length === 0
+  )
+    return "";
 
   results = dedup(results);
   const pinOnly: Result[] = [];
@@ -36,6 +46,10 @@ export function comment(results: Result[], mismatches: Mismatch[]): string {
 
   if (mismatches.length > 0) {
     b += renderMismatches(mismatches);
+  }
+
+  if (digestMismatches.length > 0) {
+    b += renderDigestMismatches(digestMismatches);
   }
 
   for (const r of changed) {
@@ -157,6 +171,18 @@ function renderMismatches(mismatches: Mismatch[]): string {
     const expectURL = or ? `https://github.com/${or}/commit/${m.expectSHA}` : "";
     const pinnedURL = or ? `https://github.com/${or}/commit/${u.newRef}` : "";
     b += `| ${renderLabel(u)} | ${renderRef(m.tag, tagURL)} | ${renderRef(shortRef(m.expectSHA), expectURL)} | ${renderRef(shortRef(u.newRef), pinnedURL)} |\n`;
+  }
+  return b;
+}
+
+function renderDigestMismatches(mismatches: DigestMismatch[]): string {
+  let b = "\n### ⚠️ Image Tag / Digest Mismatch\n";
+  b += "\nThe following images pin a digest that the registry no longer resolves the tag to:\n";
+  b += "\n| Image | Tag | Registry Digest | Pinned Digest |\n";
+  b += "|-------|-----|-----------------|---------------|\n";
+  for (const m of mismatches) {
+    const u = m.update;
+    b += `| ${renderLabel(u)} | \`${m.tag}\` | \`${shortDigest(m.expectDigest)}\` | \`${shortDigest(u.newDigest ?? "")}\` |\n`;
   }
   return b;
 }

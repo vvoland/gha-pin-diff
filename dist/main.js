@@ -4,6 +4,8 @@ import { parse } from "./diffparser/parser.js";
 import { APIError, Client } from "./github/client.js";
 import { resolveLazyLockRepos as resolveLazyLockReposInWorkspace } from "./lazy/plugins.js";
 import { check, formatMismatch } from "./pinverify/verify.js";
+import { RegistryClient } from "./registry/client.js";
+import { check as checkImages, formatDigestMismatch } from "./registry/verify.js";
 import { comment } from "./render/render.js";
 import path from "node:path";
 import { readFileSync } from "node:fs";
@@ -54,8 +56,13 @@ async function run() {
     for (const m of mismatches) {
         console.warn(`warning: ${formatMismatch(m)}`);
     }
+    // 5b. Verify Compose image tags still resolve to their pinned digests.
+    const digestMismatches = await checkImages(new RegistryClient(), updates);
+    for (const m of digestMismatches) {
+        console.warn(`warning: ${formatDigestMismatch(m)}`);
+    }
     // 6. Render comment.
-    const body = comment(results, mismatches);
+    const body = comment(results, mismatches, digestMismatches);
     // 7. Create or update PR comment.
     try {
         return await ensure(client, owner, repoName, pr, body);

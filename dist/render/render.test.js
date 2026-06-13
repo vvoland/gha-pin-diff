@@ -57,6 +57,30 @@ describe("comment", () => {
         assert.ok(got.includes("⚠️ Could not fetch comparison"));
         assert.ok(got.includes("View diff manually"));
     });
+    it("renders an image tag / digest mismatch section", () => {
+        const digestMismatches = [
+            {
+                update: {
+                    action: "ghcr.io/owner/app",
+                    oldRef: "1.0",
+                    newRef: "1.1",
+                    oldTag: "1.0",
+                    newTag: "1.1",
+                    newDigest: "sha256:" + "b".repeat(64),
+                    file: "compose.yaml",
+                    homeURL: "https://github.com/owner/app",
+                    repo: "owner/app",
+                },
+                tag: "1.1",
+                expectDigest: "sha256:" + "a".repeat(64),
+            },
+        ];
+        const got = comment([], [], digestMismatches);
+        assert.ok(got.startsWith(MARKER));
+        assert.ok(got.includes("### ⚠️ Image Tag / Digest Mismatch"));
+        assert.ok(got.includes("| `1.1` | `sha256:aaaaaaaaaaaa` | `sha256:bbbbbbbbbbbb` |"));
+        assert.ok(got.includes("[`ghcr.io/owner/app`](https://github.com/owner/app)"));
+    });
     it("renders unresolved lazy-lock entries without broken links", () => {
         const results = [
             {
