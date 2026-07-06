@@ -1,5 +1,6 @@
 import { APIError } from "../github/client.js";
 import { MARKER } from "../render/render.js";
+import { appendFile } from "node:fs/promises";
 /**
  * Creates, updates, or deletes the bot comment on a PR.
  * If body is empty, any existing bot comment is deleted.
@@ -32,6 +33,7 @@ export async function ensureIfAllowed(client, owner, repo, pr, body) {
     catch (err) {
         if (isCommentPermissionError(err)) {
             console.log(`::warning::${formatCommentPermissionError(err)}`);
+            await writeStepSummary(body);
             return;
         }
         throw err;
@@ -42,6 +44,17 @@ export function isCommentPermissionError(err) {
         err.statusCode === 403 &&
         /\/issues(?:\/\d+\/comments|\/comments\/\d+)(?:\?|$)/.test(err.url) &&
         err.body.includes("Resource not accessible by integration"));
+}
+async function writeStepSummary(body) {
+    const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+    if (!summaryPath || !body)
+        return;
+    try {
+        await appendFile(summaryPath, `${body.trimEnd()}\n`, "utf8");
+    }
+    catch (err) {
+        console.log(`::warning::unable to write fallback workflow summary: ${err}`);
+    }
 }
 function formatCommentPermissionError(err) {
     return [
