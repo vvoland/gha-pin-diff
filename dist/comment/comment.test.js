@@ -1,7 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { ensure } from "./comment.js";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { ensure, ensureIfAllowed, isCommentPermissionError } from "./comment.js";
 import { APIError, Client } from "../github/client.js";
 import { MARKER } from "../render/render.js";
 function startServer(handler) {
@@ -155,6 +158,101 @@ describe("ensure", () => {
         }
         finally {
             close();
+        }
+    });
+    it("recognizes issue comment permission denials", () => {
+        const body = JSON.stringify({
+            message: "Resource not accessible by integration",
+        });
+        for (const url of [
+            "https://api.github.com/repos/o/r/issues/1/comments",
+            "https://api.github.com/repos/o/r/issues/1/comments?per_page=100&page=1",
+            "https://api.github.com/repos/o/r/issues/comments/42",
+        ]) {
+            assert.equal(isCommentPermissionError(new APIError("POST", url, 403, body)), true, url);
+        }
+    });
+    it("warns instead of failing when comments are forbidden", async () => {
+        const { url, close } = await startServer((req, res) => {
+            if (req.url === "/repos/o/r/issues/1/comments?per_page=100&page=1" &&
+                req.method === "GET") {
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end("[]");
+                return;
+            }
+            if (req.url === "/repos/o/r/issues/1/comments" &&
+                req.method === "POST") {
+                res.writeHead(403, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ message: "Resource not accessible by integration" }));
+                return;
+            }
+            res.writeHead(404);
+            res.end();
+        });
+        const logs = [];
+        const originalLog = console.log;
+        const originalSummary = process.env.GITHUB_STEP_SUMMARY;
+        delete process.env.GITHUB_STEP_SUMMARY;
+        console.log = (...data) => {
+            logs.push(data.join(" "));
+        };
+        try {
+            const client = new Client("");
+            client.setBaseURL(url);
+            await ensureIfAllowed(client, "o", "r", 1, "new body");
+            assert.equal(logs.length, 1);
+            assert.match(logs[0], /^::warning::unable to post PR comment/);
+        }
+        finally {
+            console.log = originalLog;
+            if (originalSummary === undefined) {
+                delete process.env.GITHUB_STEP_SUMMARY;
+            }
+            else {
+                process.env.GITHUB_STEP_SUMMARY = originalSummary;
+            }
+            close();
+        }
+    });
+    it("writes the comment body to the workflow summary when comments are forbidden", async () => {
+        const { url, close } = await startServer((req, res) => {
+            if (req.url === "/repos/o/r/issues/1/comments?per_page=100&page=1" &&
+                req.method === "GET") {
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end("[]");
+                return;
+            }
+            if (req.url === "/repos/o/r/issues/1/comments" &&
+                req.method === "POST") {
+                res.writeHead(403, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ message: "Resource not accessible by integration" }));
+                return;
+            }
+            res.writeHead(404);
+            res.end();
+        });
+        const dir = await mkdtemp(join(tmpdir(), "gha-pin-diff-"));
+        const summaryPath = join(dir, "summary.md");
+        const originalLog = console.log;
+        const originalSummary = process.env.GITHUB_STEP_SUMMARY;
+        console.log = () => { };
+        process.env.GITHUB_STEP_SUMMARY = summaryPath;
+        try {
+            const client = new Client("");
+            client.setBaseURL(url);
+            await ensureIfAllowed(client, "o", "r", 1, "## rendered diff\n");
+            assert.equal(await readFile(summaryPath, "utf8"), "## rendered diff\n");
+        }
+        finally {
+            console.log = originalLog;
+            if (originalSummary === undefined) {
+                delete process.env.GITHUB_STEP_SUMMARY;
+            }
+            else {
+                process.env.GITHUB_STEP_SUMMARY = originalSummary;
+            }
+            close();
+            await rm(dir, { recursive: true, force: true });
         }
     });
 });

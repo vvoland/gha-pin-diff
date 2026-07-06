@@ -1,7 +1,7 @@
-import { ensure } from "./comment/comment.js";
+import { ensureIfAllowed } from "./comment/comment.js";
 import { fetch } from "./compare/compare.js";
 import { parse, type ActionUpdate } from "./diffparser/parser.js";
-import { APIError, Client } from "./github/client.js";
+import { Client } from "./github/client.js";
 import { resolveLazyLockRepos as resolveLazyLockReposInWorkspace } from "./lazy/plugins.js";
 import { check, formatMismatch } from "./pinverify/verify.js";
 import { RegistryClient } from "./registry/client.js";
@@ -44,7 +44,7 @@ async function run(): Promise<void> {
 
   if (Object.keys(patches).length === 0) {
     console.log("no supported file changes found");
-    return ensure(client, owner, repoName, pr, "");
+    return ensureIfAllowed(client, owner, repoName, pr, "");
   }
 
   // 3. Parse pinned ref changes from patches.
@@ -52,7 +52,7 @@ async function run(): Promise<void> {
   updates = resolveLazyLockRepos(updates);
   if (updates.length === 0) {
     console.log("no pinned ref changes detected");
-    return ensure(client, owner, repoName, pr, "");
+    return ensureIfAllowed(client, owner, repoName, pr, "");
   }
 
   // Deduplicate updates that refer to the same comparison.
@@ -79,33 +79,7 @@ async function run(): Promise<void> {
   const body = comment(results, mismatches, digestMismatches);
 
   // 7. Create or update PR comment.
-  try {
-    return await ensure(client, owner, repoName, pr, body);
-  } catch (err) {
-    if (isCommentPermissionError(err)) {
-      console.log(`::warning::${formatCommentPermissionError(err)}`);
-      return;
-    }
-    throw err;
-  }
-}
-
-function isCommentPermissionError(err: unknown): err is APIError {
-  return (
-    err instanceof APIError &&
-    err.statusCode === 403 &&
-    /\/issues(?:\/comments)?(?:\?|$)/.test(err.url) &&
-    err.body.includes("Resource not accessible by integration")
-  );
-}
-
-function formatCommentPermissionError(err: APIError): string {
-  return [
-    "unable to post PR comment with the current token",
-    "GitHub returned 403 Resource not accessible by integration",
-    "this commonly happens on pull requests from forks or Dependabot runs without comment permissions",
-    "grant pull-requests: write or run in a context with a writable token",
-  ].join("; ");
+  return ensureIfAllowed(client, owner, repoName, pr, body);
 }
 
 function getPRNumber(): number {
