@@ -1,4 +1,4 @@
-import type { Client } from "../github/client.js";
+import { APIError, type Client } from "../github/client.js";
 import { MARKER } from "../render/render.js";
 
 /**
@@ -27,6 +27,47 @@ export async function ensure(
   } else {
     await client.createIssueComment(owner, repo, pr, body);
   }
+}
+
+/**
+ * Creates, updates, or deletes the bot comment when the token is allowed to.
+ * Forked pull_request runs can have read-only tokens even when the workflow asks
+ * for write permissions, so comment permission failures are logged as warnings.
+ */
+export async function ensureIfAllowed(
+  client: Client,
+  owner: string,
+  repo: string,
+  pr: number,
+  body: string
+): Promise<void> {
+  try {
+    await ensure(client, owner, repo, pr, body);
+  } catch (err) {
+    if (isCommentPermissionError(err)) {
+      console.log(`::warning::${formatCommentPermissionError(err)}`);
+      return;
+    }
+    throw err;
+  }
+}
+
+export function isCommentPermissionError(err: unknown): err is APIError {
+  return (
+    err instanceof APIError &&
+    err.statusCode === 403 &&
+    /\/issues(?:\/\d+\/comments|\/comments\/\d+)(?:\?|$)/.test(err.url) &&
+    err.body.includes("Resource not accessible by integration")
+  );
+}
+
+function formatCommentPermissionError(err: APIError): string {
+  return [
+    "unable to post PR comment with the current token",
+    "GitHub returned 403 Resource not accessible by integration",
+    "this commonly happens on pull requests from forks or Dependabot runs without comment permissions",
+    "grant pull-requests: write or run in a context with a writable token",
+  ].join("; ");
 }
 
 async function findBotComment(
