@@ -1,5 +1,4 @@
-import { APIError } from "../github/client.js";
-import type { Client } from "../github/client.js";
+import { APIError, type Client } from "../github/client.js";
 /**
  * Creates, updates, or deletes the bot comment on a PR.
  * If body is empty, any existing bot comment is deleted.
