@@ -522,4 +522,71 @@ describe("comment", () => {
       got
     );
   });
+
+  it("renders GHCR digest-only updates as images", () => {
+    const oldDigest = "sha256:" + "a".repeat(64);
+    const newDigest = "sha256:" + "b".repeat(64);
+    const results: Result[] = [
+      {
+        update: {
+          action: "ghcr.io/owner/app",
+          oldRef: "1.0",
+          newRef: "1.0",
+          oldTag: "1.0",
+          newTag: "1.0",
+          oldDigest,
+          newDigest,
+          file: "compose.yaml",
+          homeURL: "https://github.com/owner/app",
+          repo: "owner/app",
+        },
+        compareURL: "https://github.com/owner/app/compare/1.0...1.0",
+        totalCommits: 0,
+        commits: [],
+        err: null,
+      },
+    ];
+
+    const got = comment(results, []);
+    assert.ok(got.includes("### 🐳 Docker Images"));
+    assert.ok(
+      got.includes(
+        "| [`ghcr.io/owner/app`](https://github.com/owner/app) | `1.0@sha256:aaaaaaaaaaaa` | `1.0@sha256:bbbbbbbbbbbb` |"
+      ),
+      got
+    );
+    assert.ok(!got.includes("digest unchanged"), got);
+    assert.ok(!got.includes("/commit/1.0"), got);
+  });
+
+  it("preserves different digest updates for the same image and tag", () => {
+    const result = (file: string, newDigest: string): Result => ({
+      update: {
+        action: "nginx",
+        oldRef: "1.0",
+        newRef: "1.0",
+        oldTag: "1.0",
+        newTag: "1.0",
+        oldDigest: "sha256:" + "a".repeat(64),
+        newDigest,
+        file,
+        homeURL: "https://hub.docker.com/_/nginx",
+      },
+      compareURL: "",
+      totalCommits: 0,
+      commits: [],
+      err: null,
+    });
+
+    const got = comment(
+      [
+        result("compose.yaml", "sha256:" + "b".repeat(64)),
+        result("compose.prod.yaml", "sha256:" + "c".repeat(64)),
+      ],
+      []
+    );
+
+    assert.ok(got.includes("1.0@sha256:bbbbbbbbbbbb"), got);
+    assert.ok(got.includes("1.0@sha256:cccccccccccc"), got);
+  });
 });

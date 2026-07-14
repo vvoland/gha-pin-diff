@@ -109,6 +109,46 @@ describe("check", () => {
             close();
         }
     });
+    it("checks every distinct digest for the same image and tag", async () => {
+        const { url, close } = await startServer(resolvesTo(digestB));
+        try {
+            const mismatches = await check(clientFor(url), [
+                imageUpdate({ file: "compose.yaml", newDigest: digestA }),
+                imageUpdate({ file: "compose.prod.yaml", newDigest: digestB }),
+            ]);
+            assert.equal(mismatches.length, 1);
+            assert.equal(mismatches[0].update.file, "compose.yaml");
+            assert.equal(mismatches[0].update.newDigest, digestA);
+        }
+        finally {
+            close();
+        }
+    });
+    it("limits concurrent registry requests", async () => {
+        let active = 0;
+        let maxActive = 0;
+        let calls = 0;
+        const { url, close } = await startServer((_req, res) => {
+            calls++;
+            active++;
+            maxActive = Math.max(maxActive, active);
+            setTimeout(() => {
+                active--;
+                res.writeHead(200, { "Docker-Content-Digest": digestB });
+                res.end();
+            }, 20);
+        });
+        try {
+            const updates = Array.from({ length: 12 }, (_, i) => imageUpdate({ newTag: `1.${i}` }));
+            const mismatches = await check(clientFor(url), updates);
+            assert.equal(mismatches.length, 0);
+            assert.equal(calls, updates.length);
+            assert.ok(maxActive <= 5, `maximum active requests was ${maxActive}`);
+        }
+        finally {
+            close();
+        }
+    });
     it("does not report a mismatch when the registry is unreachable", async () => {
         const { url, close } = await startServer((_req, res) => {
             res.writeHead(500);

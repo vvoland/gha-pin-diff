@@ -143,13 +143,14 @@ Digest-pinned references such as `nginx:1.26.0@sha256:...` keep the digest as th
 immutable pin: it is shown alongside the tag, and re-pointing a tag to a new
 digest is reported even when the tag itself is unchanged.
 
-For digest-pinned images, the action queries the image's OCI registry (Docker
-Hub, GHCR, or any distribution-spec registry, using an anonymous pull token when
-required) to confirm the new tag still resolves to the pinned digest. A
-disagreement, the tag was moved or the digest was hand-edited, is surfaced in an
-**⚠️ Image Tag / Digest Mismatch** warning table, the Docker analog of the
-tag/SHA mismatch check. Registries that need authentication or are unreachable
-are skipped without failing the PR.
+For digest-pinned images, the action queries the image's public OCI registry
+(Docker Hub, GHCR, or another distribution-spec registry, using an anonymous
+pull token when required) to confirm the new tag still resolves to the pinned
+digest. A disagreement, the tag was moved or the digest was hand-edited, is
+surfaced in an **⚠️ Image Tag / Digest Mismatch** warning table, the Docker
+analog of the tag/SHA mismatch check. Private-network registries, registries
+that need authentication, and unreachable registries are skipped without
+failing the PR.
 
 ## Behavior
 

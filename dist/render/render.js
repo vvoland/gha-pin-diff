@@ -17,8 +17,11 @@ export function comment(results, mismatches, digestMismatches = []) {
     const images = [];
     const changed = [];
     for (const r of results) {
-        if (isImageOnly(r)) {
+        if (isImage(r)) {
             images.push(r);
+            if (updateOwnerRepo(r.update) !== null && (r.err || r.totalCommits > 0)) {
+                changed.push(r);
+            }
         }
         else if (isPinOnly(r)) {
             pinOnly.push(r);
@@ -50,12 +53,10 @@ export function comment(results, mismatches, digestMismatches = []) {
 }
 function dedup(results) {
     const sorted = [...results].sort((a, b) => {
-        if (a.update.action !== b.update.action)
-            return a.update.action < b.update.action ? -1 : 1;
-        if (a.update.oldRef !== b.update.oldRef)
-            return a.update.oldRef < b.update.oldRef ? -1 : 1;
-        if (a.update.newRef !== b.update.newRef)
-            return a.update.newRef < b.update.newRef ? -1 : 1;
+        const aKey = updateKey(a.update);
+        const bKey = updateKey(b.update);
+        if (aKey !== bKey)
+            return aKey < bKey ? -1 : 1;
         return a.update.file < b.update.file
             ? -1
             : a.update.file > b.update.file
@@ -63,23 +64,29 @@ function dedup(results) {
                 : 0;
     });
     return sorted.filter((r, i) => i === 0 ||
-        r.update.action !== sorted[i - 1].update.action ||
-        r.update.oldRef !== sorted[i - 1].update.oldRef ||
-        r.update.newRef !== sorted[i - 1].update.newRef);
+        updateKey(r.update) !== updateKey(sorted[i - 1].update));
+}
+function updateKey(u) {
+    return [
+        u.action,
+        u.repo ?? "",
+        u.oldRef,
+        u.newRef,
+        u.oldTag,
+        u.newTag,
+        u.oldDigest ?? "",
+        u.newDigest ?? "",
+    ].join("\0");
 }
 function isPinOnly(r) {
     return r.err === null && r.totalCommits === 0;
 }
 /**
- * Reports whether r is a version change for a dependency that is not backed by
- * a GitHub repository (e.g. a Docker Hub image), so it has no commit list to
- * show and is rendered as a plain version bump.
+ * Reports whether r is a Docker image update. Compose images always carry a
+ * home URL, including GHCR images that also map to a GitHub repository.
  */
-function isImageOnly(r) {
-    return (r.err === null &&
-        r.totalCommits === 0 &&
-        !!r.update.homeURL &&
-        updateOwnerRepo(r.update) === null);
+function isImage(r) {
+    return !!r.update.homeURL;
 }
 function ownerRepoStr(update) {
     const parsed = updateOwnerRepo(update);

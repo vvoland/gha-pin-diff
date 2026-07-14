@@ -18,7 +18,9 @@ export interface ImageName {
 export declare function splitImageName(name: string): ImageName;
 /** Minimal OCI distribution client that resolves a tag to its content digest. */
 export declare class RegistryClient {
+    private requestTimeoutMS;
     private endpoints;
+    constructor(requestTimeoutMS?: number);
     /** Overrides the base URL used for a registry host (useful for testing). */
     setEndpoint(registry: string, baseURL: string): void;
     /**
@@ -35,4 +37,5 @@ export declare class RegistryClient {
      * repository when the challenge omits one.
      */
     private authenticate;
+    private request;
 }

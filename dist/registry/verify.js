@@ -1,3 +1,4 @@
+const MAX_CONCURRENT_REQUESTS = 5;
 /**
  * Verifies that each digest-pinned Compose image still resolves its tag to the
  * pinned digest. A tag is mutable, so `image: nginx:1.27@sha256:...` is only
@@ -20,12 +21,19 @@ export async function check(client, updates) {
     // Deduplicate by image+tag to avoid redundant registry calls.
     const resolved = new Map();
     const seen = new Set();
-    const promises = [];
+    const unique = [];
     for (const j of jobs) {
         if (seen.has(j.key))
             continue;
         seen.add(j.key);
-        promises.push((async () => {
+        unique.push(j);
+    }
+    let next = 0;
+    async function worker() {
+        for (;;) {
+            const j = unique[next++];
+            if (!j)
+                return;
             try {
                 const digest = await client.resolveDigest(j.update.action, j.update.newTag);
                 resolved.set(j.key, digest);
@@ -33,9 +41,9 @@ export async function check(client, updates) {
             catch (err) {
                 console.warn(`warning: could not resolve tag ${j.update.newTag} for ${j.update.action}: ${err}`);
             }
-        })());
+        }
     }
-    await Promise.all(promises);
+    await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENT_REQUESTS, unique.length) }, () => worker()));
     const mismatches = [];
     for (const j of jobs) {
         const digest = resolved.get(j.key);

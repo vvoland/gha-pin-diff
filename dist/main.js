@@ -113,7 +113,16 @@ function dedup(updates) {
     const seen = new Set();
     const out = [];
     for (const u of updates) {
-        const k = `${u.action}\0${u.oldRef}\0${u.newRef}`;
+        const k = [
+            u.action,
+            u.repo ?? "",
+            u.oldRef,
+            u.newRef,
+            u.oldTag,
+            u.newTag,
+            u.oldDigest ?? "",
+            u.newDigest ?? "",
+        ].join("\0");
         if (seen.has(k))
             continue;
         seen.add(k);

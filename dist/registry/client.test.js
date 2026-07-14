@@ -105,5 +105,58 @@ describe("RegistryClient.resolveDigest", () => {
             close();
         }
     });
+    it("rejects registries on non-public addresses", async () => {
+        const client = new RegistryClient();
+        for (const image of [
+            "127.0.0.1/team/app",
+            "[::1]/team/app",
+            "[::ffff:127.0.0.1]/team/app",
+        ]) {
+            await assert.rejects(() => client.resolveDigest(image, "latest"), /non-public address/, image);
+        }
+    });
+    it("does not trust a cross-origin token realm", async () => {
+        const { url, close } = await startServer((_req, res) => {
+            res.writeHead(401, {
+                "WWW-Authenticate": 'Bearer realm="https://169.254.169.254/token",service="registry.example"',
+            });
+            res.end();
+        });
+        try {
+            const client = new RegistryClient();
+            client.setEndpoint("registry.example", url);
+            await assert.rejects(() => client.resolveDigest("registry.example/team/app", "latest"), /non-public address/);
+        }
+        finally {
+            close();
+        }
+    });
+    it("does not trust a cross-origin redirect", async () => {
+        const { url, close } = await startServer((_req, res) => {
+            res.writeHead(307, {
+                Location: "https://169.254.169.254/v2/team/app/manifests/latest",
+            });
+            res.end();
+        });
+        try {
+            const client = new RegistryClient();
+            client.setEndpoint("registry.example", url);
+            await assert.rejects(() => client.resolveDigest("registry.example/team/app", "latest"), /non-public address/);
+        }
+        finally {
+            close();
+        }
+    });
+    it("times out stalled registry requests", async () => {
+        const { url, close } = await startServer(() => { });
+        try {
+            const client = new RegistryClient(25);
+            client.setEndpoint("registry.example", url);
+            await assert.rejects(() => client.resolveDigest("registry.example/team/app", "latest"), /abort|timeout/i);
+        }
+        finally {
+            close();
+        }
+    });
 });
 //# sourceMappingURL=client.test.js.map

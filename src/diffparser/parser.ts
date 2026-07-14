@@ -7,7 +7,7 @@ export interface ActionUpdate {
   newTag: string; // human-readable version
   file: string; // workflow file path
   repo?: string; // GitHub repository path, e.g. "actions/checkout"
-  homeURL?: string; // web page for the dependency when it is not a GitHub repo (e.g. a Docker Hub image)
+  homeURL?: string; // web page for the dependency (e.g. a registry or GitHub repository)
   oldDigest?: string; // image digest pin, e.g. "sha256:...", when the reference is digest-pinned
   newDigest?: string; // image digest pin, e.g. "sha256:..."
 }
