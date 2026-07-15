@@ -1,26 +1,19 @@
 # gha-pin-diff
 
-A GitHub Action that comments on PRs with a diff summary for pinned GitHub Actions and Neovim `lazy-lock.json` updates.
+**gha-pin-diff** is a GitHub Action that reviews dependency pin changes. It
+summarizes changes between refs and warns when tags do not match pinned SHAs or
+digests.
+
+Currently supports:
+
+- GitHub Actions
+- Neovim `lazy-lock.json` files
+- OCI image references in Compose files
 
 ## Why
 
-Dependabot already shows commit information when it bumps action versions.
-But when a **human** updates pinned actions — bulk re-pins, initial pinning, or manual upgrades — the PR diff is opaque:
-
-```diff
-- uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-+ uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
-```
-
-Nobody is going to look up what changed between those two SHAs.
-**gha-pin-diff** posts a PR comment summarizing the commits between the old and new refs.
-
-More importantly, it **catches tag/SHA mismatches** — a wrong inline comment is invisible in review:
-
-```yaml
-# Looks fine, but the SHA is actually v6.0.2 — the comment lies.
-- uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.1
-```
+PR diffs show changed SHAs but not the commits between them. **gha-pin-diff**
+adds the commit summary and warns when an inline tag does not match its SHA.
 
 ## Example Output
 
@@ -36,8 +29,6 @@ More importantly, it **catches tag/SHA mismatches** — a wrong inline comment i
 
 ### Tag / SHA Mismatch Warning
 
-When the pinned SHA doesn't match the tag in the inline comment:
-
 > ### ⚠️ Tag / SHA Mismatch
 >
 > The following pins reference a SHA that does not match the tag in the comment:
@@ -46,18 +37,12 @@ When the pinned SHA doesn't match the tag in the inline comment:
 > |--------|-----|-------------|------------|
 > | `actions/checkout` | `v6.0.1` | `8e8c483` | `de0fac2` |
 
-This catches typos, stale comments, and copy-paste errors that are impossible to spot in review.
-
 ## Usage
 
 ```yaml
 name: Action Pin Diff
 on:
   pull_request:
-    paths:
-      - '.github/workflows/**'
-      - '**/compose.y*ml'
-      - '**/docker-compose*.y*ml'
 
 permissions:
   contents: read
@@ -81,18 +66,18 @@ jobs:
 
 | Scope | Level | Reason |
 |-------|-------|--------|
-| `contents` | `read` | Read PR file diffs |
-| `pull-requests` | `write` | Post/update PR comments |
+| `contents` | `read` | Compare commits and resolve tags |
+| `pull-requests` | `write` | Read PR file diffs and post/update comments |
 
 ## Local Verification
 
-You can also run pin verification locally against your `.github/workflows/` directory without a PR:
+Verify pins in `.github/workflows/` without a PR:
 
 ```bash
 npm run local
 ```
 
-Or specify a different project root:
+To use another project root:
 
 ```bash
 npm run local -- /path/to/project
@@ -114,7 +99,7 @@ found 8 SHA-pinned action(s) with tag comments
   .github/workflows/ci.yml:13: actions/checkout pinned to de0fac2 but v6.0.1 resolves to 8e8c483
 ```
 
-The exit code is non-zero when mismatches are found, making it suitable for CI or pre-commit hooks.
+Mismatches return a non-zero exit code for use in CI or pre-commit hooks.
 
 ## What It Detects
 
@@ -127,30 +112,15 @@ The exit code is non-zero when mismatches are found, making it suitable for CI o
 - **Step actions**: `uses: owner/repo@ref`
 - **Reusable workflows**: `uses: owner/repo/.github/workflows/file.yml@ref`
 - **Neovim lazy.nvim lockfiles**: `lazy-lock.json` commit bumps
-- **Docker Compose images**: `image: name:tag[@sha256:digest]` version bumps in `compose.yaml` / `docker-compose.yml`
+- **OCI image references**: `image: name:tag[@sha256:digest]` version bumps in Compose files
 
-For `lazy-lock.json`, the action resolves plugin aliases to GitHub repositories by
-scanning `lua/plugins/**/*.lua` in the checked-out workspace. Without a checkout,
-lazy-lock updates are still detected, but unresolved aliases are rendered without
-repository links or compare URLs.
+Linking `lazy-lock.json` aliases requires a checkout so the action can scan
+`lua/plugins/**/*.lua`. Updates are still detected without one.
 
-For Docker Compose files, `image:` tag changes are reported as version bumps.
-`ghcr.io/owner/repo` images are mapped to their backing GitHub repository, so the
-full commit comparison is shown just like an action. Images on other registries
-(Docker Hub, Quay, private registries) are listed in a **🐳 Docker Images** table
-linking to the registry page, since no commit history is available for them.
-Digest-pinned references such as `nginx:1.26.0@sha256:...` keep the digest as the
-immutable pin: it is shown alongside the tag, and re-pointing a tag to a new
-digest is reported even when the tag itself is unchanged.
-
-For digest-pinned images, the action queries the image's public OCI registry
-(Docker Hub, GHCR, or another distribution-spec registry, using an anonymous
-pull token when required) to confirm the new tag still resolves to the pinned
-digest. A disagreement, the tag was moved or the digest was hand-edited, is
-surfaced in an **⚠️ Image Tag / Digest Mismatch** warning table, the Docker
-analog of the tag/SHA mismatch check. Private-network registries, registries
-that need authentication, and unreachable registries are skipped without
-failing the PR.
+GHCR images include GitHub commit comparisons; other images link to their
+registry pages. Digest changes are reported even when the tag is unchanged.
+Public OCI registries are checked for tag/digest mismatches. Private-network,
+authenticated, and unreachable registries are skipped.
 
 ## Behavior
 
@@ -161,25 +131,19 @@ failing the PR.
 | Image tag/digest mismatch detected | Show warning table at top of comment |
 | No changes | Delete existing bot comment, if any |
 | Compare API fails (deleted repo, etc.) | Show warning with manual compare link |
-| Comment API returns 403 | Log a warning, write the diff to the workflow summary, and continue without failing the PR |
+| Comment API denies integration access | Log a warning, write the diff to the workflow summary, and continue without failing the PR |
 | >15 commits per action | Show last 15, link to full comparison |
 
-The bot never fails a PR — errors are logged, not fatal.
+Comparison, tag-resolution, and registry-resolution errors are logged instead
+of failing the PR. Other runtime errors fail the action step.
 
 ## Development
-
-### Build
 
 ```bash
 npm install
 npm run build
-```
-
-### Test
-
-```bash
 npm test
 ```
 
-The `dist/` directory contains the compiled JavaScript and is committed to the repo
-so the action can run directly without a build step.
+The committed `dist/` directory contains the compiled JavaScript, so the action
+can run without a build step.
